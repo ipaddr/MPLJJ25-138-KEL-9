@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'delivery.dart'; // Import untuk menggunakan DeliveryData dan DeliveryStatus
 
 class FormDeliveryPage extends StatefulWidget {
   const FormDeliveryPage({Key? key}) : super(key: key);
@@ -12,7 +13,7 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
   final TextEditingController _mealsController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
 
-  TimeOfDay? _selectedTime; // Digunakan dengan benar
+  TimeOfDay? _selectedTime;
 
   Future<void> _pickTime() async {
     final TimeOfDay? picked = await showTimePicker(
@@ -29,8 +30,8 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
   }
 
   void _submitForm() {
-    final schoolName = _schoolController.text;
-    final meals = int.tryParse(_mealsController.text) ?? 0;
+    final schoolName = _schoolController.text.trim();
+    final meals = int.tryParse(_mealsController.text.trim()) ?? 0;
     final deliveryTime = _selectedTime;
 
     if (schoolName.isEmpty || deliveryTime == null || meals <= 0) {
@@ -40,14 +41,20 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
       return;
     }
 
-    // Gunakan _selectedTime misalnya untuk simpan ke database, print, dsb
-    print('School: $schoolName');
-    print('Meals: $meals');
-    print('Delivery Time: ${deliveryTime.format(context)}');
+    // Format waktu jadi string seperti "08:30"
+    final formattedTime = deliveryTime.format(context);
 
-    ScaffoldMessenger.of(
+    final newDelivery = DeliveryData(
+      time: formattedTime,
+      location: schoolName,
+      meals: meals,
+      status: DeliveryStatus.completed, // default status
+    );
+
+    Navigator.pop(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Delivery added!')));
+      newDelivery,
+    ); // Kembali ke DeliveryScreen sambil kirim data
   }
 
   @override
@@ -63,7 +70,7 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF3E0),
       appBar: AppBar(
-        backgroundColor: Colors.orange,
+        backgroundColor: const Color(0xFFFFA726),
         title: const Text('Add Delivery'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -113,13 +120,13 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.orange,
+                  backgroundColor: const Color(0xFFFFA726),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 onPressed: _submitForm,
-                child: const Text('Add'),
+                child: const Text('Add', style: TextStyle(color: Colors.black)),
               ),
             ),
           ],

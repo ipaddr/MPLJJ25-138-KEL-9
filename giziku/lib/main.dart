@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'vendor/form_delivery.dart';
+import 'login/login.dart';
 
 void main() {
   runApp(const GiziKuApp());
@@ -17,7 +17,7 @@ class GiziKuApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const FormDeliveryPage(),
+      home: const LoginScreen(),
     );
   }
 }
