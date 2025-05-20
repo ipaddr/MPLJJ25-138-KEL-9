@@ -51,6 +51,7 @@ dev_dependencies:
   provider: ^6.1.2
   charts_flutter: ^0.12.0
   intl: ^0.17.0
+  mobile_scanner: ^3.5.2
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

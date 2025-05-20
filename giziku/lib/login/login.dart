@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'register.dart';
 import '../user/dashboard.dart';
 import '../vendor/dashboard_vendor.dart';
+import '../admin/dashboard_admin.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -150,6 +151,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     context,
                                     MaterialPageRoute(
                                       builder: (_) => const DashboardScreen(),
+                                    ),
+                                  );
+                                } else if (_selectedRole == 'Admin Sekolah') {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const DashboardAdmin(),
                                     ),
                                   );
                                 }
