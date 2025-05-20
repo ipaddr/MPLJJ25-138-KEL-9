@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'register.dart';
+import '../user/dashboard.dart';
+import '../vendor/dashboard_vendor.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -125,8 +127,34 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: double.infinity,
                             child: ElevatedButton(
                               onPressed: () {
-                                // Add login logic
+                                if (_selectedRole == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        "Silakan pilih role terlebih dahulu.",
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (_selectedRole == 'User Biasa') {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const HomeScreen(),
+                                    ), // dashboard user
+                                  );
+                                } else if (_selectedRole == 'Vendor Makanan') {
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => const DashboardScreen(),
+                                    ),
+                                  );
+                                }
                               },
+
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.orange,
                                 padding: const EdgeInsets.symmetric(
