@@ -11,7 +11,7 @@ class MealsScreen extends StatefulWidget {
 }
 
 class _MealsScreenState extends State<MealsScreen> {
-  int _currentIndex = 1;
+  final int _currentIndex = 1;
 
   void _onTabTapped(int index) {
     Widget screen;

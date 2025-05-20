@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'edit_profile.dart'; // Import file edit profile
+import '../login/login.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -81,7 +82,12 @@ class ProfileScreen extends StatelessWidget {
               height: 50,
               child: ElevatedButton.icon(
                 onPressed: () {
-                  // TODO: Logout logic here
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const LoginScreen(),
+                    ),
+                  );
                 },
                 icon: const Icon(Icons.logout),
                 label: const Text('Logout'),

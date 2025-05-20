@@ -12,7 +12,7 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  int _currentIndex = 3;
+  final int _currentIndex = 3;
 
   void _onTabTapped(int index) {
     Widget screen;

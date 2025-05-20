@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'delivery.dart'; // Import untuk menggunakan DeliveryData dan DeliveryStatus
 
 class FormDeliveryPage extends StatefulWidget {
-  const FormDeliveryPage({Key? key}) : super(key: key);
+  const FormDeliveryPage({super.key});
 
   @override
   State<FormDeliveryPage> createState() => _FormDeliveryPageState();

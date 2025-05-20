@@ -13,7 +13,7 @@ class EducationScreen extends StatefulWidget {
 }
 
 class _EducationScreenState extends State<EducationScreen> {
-  int _currentIndex = 3; // 3 = Education
+  final int _currentIndex = 3; // 3 = Education
 
   void _onTabTapped(int index) {
     Widget destination;

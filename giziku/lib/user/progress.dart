@@ -11,7 +11,7 @@ class ProgressScreen extends StatefulWidget {
 }
 
 class _ProgressScreenState extends State<ProgressScreen> {
-  int _currentIndex = 2;
+  final int _currentIndex = 2;
 
   void _onTabTapped(int index) {
     Widget screen;
