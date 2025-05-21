@@ -135,6 +135,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
                               ),
                             ),
                           ),
+                          if (_selectedRole == 'Admin Sekolah') ...[
+                            const SizedBox(height: 16),
+                            TextField(
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.school),
+                                hintText: 'Nama Sekolah',
+                                labelText: 'Sekolah',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ] else if (_selectedRole == 'User Biasa') ...[
+                            const SizedBox(height: 16),
+                            TextField(
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.people),
+                                hintText: 'Username',
+                                labelText: 'Username',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ] else if (_selectedRole == 'Vendor Makanan') ...[
+                            const SizedBox(height: 16),
+                            TextField(
+                              decoration: InputDecoration(
+                                prefixIcon: const Icon(Icons.restaurant),
+                                hintText: 'Vendor',
+                                labelText: 'Nama Vendor',
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ],
                           const SizedBox(height: 10),
 
                           const SizedBox(height: 20),

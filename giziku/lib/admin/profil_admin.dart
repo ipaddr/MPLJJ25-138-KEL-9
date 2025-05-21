@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_admin.dart';
 import '../login/login.dart';
 import 'scanner.dart';
+import 'edit_profiladmin.dart';
 
 class ProfileAdmin extends StatefulWidget {
   const ProfileAdmin({super.key});
@@ -47,11 +48,19 @@ class _ProfileAdminState extends State<ProfileAdmin> {
         backgroundColor: orangeColor,
         centerTitle: true,
         leading: const BackButton(color: Colors.black),
-        title: const Text('Profile', style: TextStyle(color: Colors.black)),
-        actions: const [
+        title: const Text('Profil', style: TextStyle(color: Colors.black)),
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Icon(Icons.edit, color: Colors.black),
+            padding: const EdgeInsets.only(right: 16),
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.black),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => EditProfileAdmin()),
+                );
+              },
+            ),
           ),
         ],
       ),
@@ -124,7 +133,7 @@ class _ProfileAdminState extends State<ProfileAdmin> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );

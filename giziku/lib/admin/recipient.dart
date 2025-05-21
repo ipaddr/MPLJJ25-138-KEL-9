@@ -54,7 +54,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         leading: const BackButton(color: Colors.black),
         centerTitle: true,
         title: const Text(
-          'Recipient Data',
+          'Data Penerima',
           style: TextStyle(color: Colors.black),
         ),
       ),
@@ -63,11 +63,14 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         child: Column(
           children: [
             // Full Name
-            buildLabel("Name"),
-            buildTextField(controller: _nameController, hintText: "Full Name"),
+            buildLabel("Nama"),
+            buildTextField(
+              controller: _nameController,
+              hintText: "Nama lengkap",
+            ),
 
             // Date of Birth
-            buildLabel("Date of Birth"),
+            buildLabel("Tanggal Lahir"),
             TextField(
               controller: _dobController,
               readOnly: true,
@@ -96,10 +99,10 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
             const SizedBox(height: 1),
 
             // Gender
-            buildLabel("Gender"),
+            buildLabel("Jenis Kelamin"),
             DropdownButtonFormField<String>(
               value: _selectedGender,
-              hint: const Text("choose your gender"),
+              hint: const Text("Pilih jenis kelamin"),
               items:
                   genderOptions
                       .map((g) => DropdownMenuItem(value: g, child: Text(g)))
@@ -148,7 +151,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
       // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        backgroundColor: orangeColor,
+        backgroundColor: const Color(0xFFFFA500),
         selectedItemColor: Colors.black54,
         unselectedItemColor: Colors.black54,
         showUnselectedLabels: true,
@@ -156,7 +159,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );

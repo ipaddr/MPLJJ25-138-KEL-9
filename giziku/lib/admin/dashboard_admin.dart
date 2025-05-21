@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'recipient.dart';
 import 'profil_admin.dart';
 import 'scanner.dart';
+import 'laporan.dart';
 
 class DashboardAdmin extends StatefulWidget {
   const DashboardAdmin({super.key});
@@ -54,12 +55,12 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                 Icon(Icons.school, size: 48, color: Colors.black),
                 SizedBox(height: 8),
                 Text(
-                  "Welcome back",
+                  "Selamat Datang Admin",
                   style: TextStyle(color: Colors.black54, fontSize: 16),
                 ),
                 SizedBox(height: 4),
                 Text(
-                  "SD N 12 Padang",
+                  "SDN 12 Padang",
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
@@ -79,17 +80,17 @@ class _DashboardAdminState extends State<DashboardAdmin> {
               children: [
                 Row(
                   children: const [
-                    StatBox(label: "Total orders", value: "1,200"),
+                    StatBox(label: "Total Pesanan", value: "1,200"),
                     SizedBox(width: 12),
-                    StatBox(label: "Distribution", value: "1,100"),
+                    StatBox(label: "Distribusi", value: "1,100"),
                   ],
                 ),
                 SizedBox(height: 12),
                 Row(
                   children: const [
-                    StatBox(label: "Delivered", value: "800"),
+                    StatBox(label: "Terkirim", value: "800"),
                     SizedBox(width: 12),
-                    StatBox(label: "Remaining", value: "300"),
+                    StatBox(label: "Sisa", value: "300"),
                   ],
                 ),
               ],
@@ -106,7 +107,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                 Expanded(
                   child: ActionButton(
                     icon: Icons.groups,
-                    label: "Input Recipient\nData",
+                    label: "Input Data\nPenerima",
                     onTap: () {
                       Navigator.push(
                         context,
@@ -121,8 +122,15 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                 Expanded(
                   child: ActionButton(
                     icon: Icons.receipt_long,
-                    label: "Distribution\nReports",
-                    onTap: () {},
+                    label: "Laporan\nDistribusi",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const DistributionReportScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -142,7 +150,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );

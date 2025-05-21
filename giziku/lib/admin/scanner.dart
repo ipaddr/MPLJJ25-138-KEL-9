@@ -54,8 +54,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
           const Padding(
             padding: EdgeInsets.all(16.0),
             child: Text(
-              'Scan the QR code on the box to confirm delivery.',
-              style: TextStyle(fontSize: 14),
+              'Scan kode QR pada kotak untuk mengonfirmasi pengiriman',
+              style: TextStyle(fontSize: 13),
             ),
           ),
           Container(
@@ -82,7 +82,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Box of 10\nTap to scan',
+                        'Box of 10\nKetuk untuk scan',
                         style: TextStyle(fontSize: 12, color: Colors.blueGrey),
                       ),
                     ],
@@ -137,7 +137,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
       ),
     );
