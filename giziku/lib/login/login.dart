@@ -3,6 +3,9 @@ import 'register.dart';
 import '../user/dashboard.dart';
 import '../vendor/dashboard_vendor.dart';
 import '../admin/dashboard_admin.dart';
+import '../service/auth_service.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -61,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 20),
                           const Text(
-                            'Selamat Datang...',
+                            ' Datang...',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 20,
@@ -127,7 +130,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
+                              onPressed: () async {
                                 if (_selectedRole == null) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
@@ -139,25 +142,73 @@ class _LoginScreenState extends State<LoginScreen> {
                                   return;
                                 }
 
-                                if (_selectedRole == 'User Biasa') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const HomeScreen(),
-                                    ), // dashboard user
-                                  );
-                                } else if (_selectedRole == 'Vendor Makanan') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const DashboardScreen(),
-                                    ),
-                                  );
-                                } else if (_selectedRole == 'Admin Sekolah') {
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => const DashboardAdmin(),
+                                try {
+                                  final user = await FirebaseAuth.instance
+                                      .signInWithEmailAndPassword(
+                                        email: _emailController.text,
+                                        password: _passwordController.text,
+                                      );
+
+                                  final uid = user.user!.uid;
+                                  final doc =
+                                      await FirebaseFirestore.instance
+                                          .collection('users')
+                                          .doc(uid)
+                                          .get();
+
+                                  if (!doc.exists) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          "Data pengguna tidak ditemukan di Firestore.",
+                                        ),
+                                      ),
+                                    );
+                                    return;
+                                  }
+
+                                  final storedRole = doc['role'];
+
+                                  if (storedRole != _selectedRole) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text("Role tidak sesuai"),
+                                      ),
+                                    );
+                                    await FirebaseAuth.instance
+                                        .signOut(); // logout paksa
+                                    return;
+                                  }
+
+                                  // Arahkan ke halaman dashboard sesuai role
+                                  if (storedRole == 'User Biasa') {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const HomeScreen(),
+                                      ),
+                                    );
+                                  } else if (storedRole == 'Vendor Makanan') {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const DashboardScreen(),
+                                      ),
+                                    );
+                                  } else if (storedRole == 'Admin Sekolah') {
+                                    Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const DashboardAdmin(),
+                                      ),
+                                    );
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        "Login gagal: ${e.toString()}",
+                                      ),
                                     ),
                                   );
                                 }

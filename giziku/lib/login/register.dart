@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../service/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -12,6 +13,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController =
       TextEditingController();
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _sekolahController = TextEditingController();
+  final TextEditingController _vendorController = TextEditingController();
 
   String? _selectedRole;
 
@@ -138,6 +142,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (_selectedRole == 'Admin Sekolah') ...[
                             const SizedBox(height: 16),
                             TextField(
+                              controller: _sekolahController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.school),
                                 hintText: 'Nama Sekolah',
@@ -150,6 +155,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ] else if (_selectedRole == 'User Biasa') ...[
                             const SizedBox(height: 16),
                             TextField(
+                              controller: _usernameController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.people),
                                 hintText: 'Username',
@@ -162,6 +168,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ] else if (_selectedRole == 'Vendor Makanan') ...[
                             const SizedBox(height: 16),
                             TextField(
+                              controller: _vendorController,
                               decoration: InputDecoration(
                                 prefixIcon: const Icon(Icons.restaurant),
                                 hintText: 'Vendor',
@@ -178,9 +185,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           SizedBox(
                             width: double.infinity,
                             child: ElevatedButton(
-                              onPressed: () {
-                                // Tambahkan logic sign up
+                              onPressed: () async {
+                                if (_passwordController.text !=
+                                    _confirmPasswordController.text) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Password tidak cocok"),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                if (_selectedRole == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("Silakan pilih role"),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                // Siapkan data tambahan berdasarkan role
+                                Map<String, dynamic> extraData = {};
+                                if (_selectedRole == 'User Biasa') {
+                                  extraData['username'] =
+                                      _usernameController.text.trim();
+                                } else if (_selectedRole == 'Admin Sekolah') {
+                                  extraData['sekolah'] =
+                                      _sekolahController.text.trim();
+                                } else if (_selectedRole == 'Vendor Makanan') {
+                                  extraData['vendor'] =
+                                      _vendorController.text.trim();
+                                }
+
+                                try {
+                                  final user = await AuthService().registerUser(
+                                    _emailController.text,
+                                    _passwordController.text,
+                                    _selectedRole!,
+                                    extraData,
+                                  );
+
+                                  if (user != null) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text("Registrasi berhasil!"),
+                                      ),
+                                    );
+                                    Navigator.pop(context);
+                                  }
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(
+                                        "Registrasi gagal: ${e.toString()}",
+                                      ),
+                                    ),
+                                  );
+                                }
                               },
+
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.orange,
                                 padding: const EdgeInsets.symmetric(

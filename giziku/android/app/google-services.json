@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "298788198616",
+    "project_id": "giziku-c2e7c",
+    "storage_bucket": "giziku-c2e7c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:298788198616:android:92c1a4d349d9854be8dfad",
+        "android_client_info": {
+          "package_name": "com.example.giziku"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBULiUqJgeDzEzCnTP-v_oZZF8kalnRJpg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
