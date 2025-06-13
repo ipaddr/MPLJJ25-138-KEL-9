@@ -3,6 +3,7 @@ import 'recipient.dart';
 import 'profil_admin.dart';
 import 'scanner.dart';
 import 'laporan.dart';
+import 'chatbot.dart';
 
 class DashboardAdmin extends StatefulWidget {
   const DashboardAdmin({super.key});
@@ -138,7 +139,17 @@ class _DashboardAdminState extends State<DashboardAdmin> {
           ),
         ],
       ),
-
+      // Tombol chatbot
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.orange,
+        child: const Icon(Icons.chat, color: Colors.black),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          );
+        },
+      ),
       // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,

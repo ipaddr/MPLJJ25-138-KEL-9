@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-
-// Import screen lain
 import 'delivery.dart';
 import 'menu.dart';
 import 'profile.dart';
+import 'chatbot.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,7 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = const [
-    DashboardHomeContent(), // home/dashboard content
+    DashboardHomeContent(),
     DeliveryScreen(),
     MenuScreen(),
     ProfileScreen(),
@@ -48,6 +47,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
               )
               : null,
       body: _screens[_currentIndex],
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.orange,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          );
+        },
+        child: const Icon(Icons.chat),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.black45,

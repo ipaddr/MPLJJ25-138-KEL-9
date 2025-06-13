@@ -3,6 +3,7 @@ import 'education.dart';
 import 'menu_recomendation.dart';
 import 'progress.dart';
 import 'profil.dart';
+import 'chatbot.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -177,6 +178,17 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
 
+      // Tombol chatbot
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.orange,
+        child: const Icon(Icons.chat, color: Colors.black),
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ChatbotScreen()),
+          );
+        },
+      ),
       // Bottom Nav
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
