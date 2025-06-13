@@ -3,6 +3,8 @@ import 'dashboard.dart';
 import 'menu_recomendation.dart';
 import 'progress.dart';
 import '../login/login.dart';
+import 'edit_profile.dart';
+import 'notification.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -51,19 +53,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.edit, color: Colors.black),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         child: Column(
           children: [
             const SizedBox(height: 24),
 
-            // Avatar + Name
             const CircleAvatar(
               radius: 40,
               backgroundColor: Colors.black12,
@@ -77,7 +72,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const Text('User', style: TextStyle(color: Colors.black54)),
             const SizedBox(height: 24),
 
-            // Height & Weight Box
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
               child: Row(
@@ -90,14 +84,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Options
-            _buildListItem(Icons.notifications, 'Notifikasi'),
-            _buildListItem(Icons.person_outline, 'Info Pribadi'),
+            _buildListItem(Icons.notifications, 'Notifikasi', () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationScreen(),
+                ),
+              );
+            }),
+            _buildListItem(Icons.person_outline, 'Edit Profil', () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const EditProfileScreen(),
+                ),
+              );
+            }),
             _buildListItem(Icons.settings, 'Pengaturan'),
 
             const SizedBox(height: 24),
 
-            // Logout Button
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: SizedBox(
@@ -170,7 +176,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildListItem(IconData icon, String label) {
+  // ✅ Versi baru _buildListItem dengan parameter opsional onTap
+  Widget _buildListItem(IconData icon, String label, [VoidCallback? onTap]) {
     return Column(
       children: [
         Container(
@@ -183,9 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             leading: Icon(icon, color: Colors.black),
             title: Text(label),
             trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              // Tambahkan aksi jika perlu
-            },
+            onTap: onTap,
           ),
         ),
       ],

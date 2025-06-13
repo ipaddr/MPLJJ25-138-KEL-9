@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard.dart';
 import 'progress.dart';
 import 'profil.dart';
+import 'detail_menu.dart'; // Tambahkan ini
 
 class MealsScreen extends StatefulWidget {
   const MealsScreen({super.key});
@@ -20,7 +21,7 @@ class _MealsScreenState extends State<MealsScreen> {
         screen = const HomeScreen();
         break;
       case 1:
-        return; // Stay on current
+        return; // Tetap di sini
       case 2:
         screen = const ProgressScreen();
         break;
@@ -55,21 +56,33 @@ class _MealsScreenState extends State<MealsScreen> {
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
-        children: const [
+        children: [
           MealCard(
             title: 'Grilled Salmon Bowl',
             description:
                 'Fresh salmon with quinoa, avocado, and seasonal vegetables',
             time: '25 mins',
             calories: '420 kcal',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MealDetailScreen()),
+              );
+            },
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           MealCard(
             title: 'Vegetarian Buddha Bowl',
             description:
                 'Mixed grains, roasted vegetables, and tahini dressing',
             time: '20 mins',
             calories: '380 kcal',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MealDetailScreen()),
+              );
+            },
           ),
         ],
       ),
@@ -99,6 +112,7 @@ class MealCard extends StatelessWidget {
   final String description;
   final String time;
   final String calories;
+  final VoidCallback? onTap;
 
   const MealCard({
     super.key,
@@ -106,70 +120,79 @@ class MealCard extends StatelessWidget {
     required this.description,
     required this.time,
     required this.calories,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.orange),
-        borderRadius: BorderRadius.circular(12),
-        color: Colors.white,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Placeholder
-          Container(
-            height: 140,
-            width: double.infinity,
-            color: Colors.grey.shade300,
-            alignment: Alignment.center,
-            child: const Text(
-              'Meal Image',
-              style: TextStyle(color: Colors.black45),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.orange),
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Gambar Placeholder
+            Container(
+              height: 140,
+              width: double.infinity,
+              color: Colors.grey.shade300,
+              alignment: Alignment.center,
+              child: const Text(
+                'Meal Image',
+                style: TextStyle(color: Colors.black45),
+              ),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: const TextStyle(color: Colors.black54),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule, size: 16, color: Colors.black54),
-                    const SizedBox(width: 4),
-                    Text(time, style: const TextStyle(color: Colors.black54)),
-                    const SizedBox(width: 16),
-                    const Icon(
-                      Icons.local_fire_department,
-                      size: 16,
-                      color: Colors.black54,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      calories,
-                      style: const TextStyle(color: Colors.black54),
-                    ),
-                  ],
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.schedule,
+                        size: 16,
+                        color: Colors.black54,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(time, style: const TextStyle(color: Colors.black54)),
+                      const SizedBox(width: 16),
+                      const Icon(
+                        Icons.local_fire_department,
+                        size: 16,
+                        color: Colors.black54,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        calories,
+                        style: const TextStyle(color: Colors.black54),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

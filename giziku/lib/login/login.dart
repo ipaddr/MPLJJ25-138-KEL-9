@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                           const SizedBox(height: 20),
                           const Text(
-                            ' Datang...',
+                            ' Selamat Datang...',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 20,
@@ -207,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(
                                       content: Text(
-                                        "Login gagal: ${e.toString()}",
+                                        "Login gagal! Kredensial tidak valid",
                                       ),
                                     ),
                                   );

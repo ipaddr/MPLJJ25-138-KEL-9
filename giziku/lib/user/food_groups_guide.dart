@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'quiz.dart'; //
+import 'quiz.dart';
 
 class FoodGroupsGuideScreen extends StatefulWidget {
   const FoodGroupsGuideScreen({super.key});

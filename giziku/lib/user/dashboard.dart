@@ -3,6 +3,7 @@ import 'education.dart';
 import 'menu_recomendation.dart';
 import 'progress.dart';
 import 'profil.dart';
+import 'history.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -167,7 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   onTap: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const MealsScreen()),
+                      MaterialPageRoute(builder: (_) => const HistoryScreen()),
                     );
                   },
                 ),

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'dashboard.dart';
 import 'menu_recomendation.dart';
 import 'progress.dart';
-//import 'reminder_screen.dart';
 import 'profil.dart';
+import 'nutritionVideo.dart';
+import 'food_groups_guide.dart';
+import 'quiz.dart';
 
 class EducationScreen extends StatefulWidget {
   const EducationScreen({super.key});
@@ -82,21 +84,40 @@ class _EducationScreenState extends State<EducationScreen> {
               icon: Icons.play_circle_outline,
               title: 'Dasar - Dasar Nutrisi',
               subtitle: '15 min video',
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const NutritionVideoScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             _buildEducationCard(
               icon: Icons.auto_graph,
               title: 'Food Groups Guide',
               subtitle: 'Interactive infographic',
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const FoodGroupsGuideScreen(),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             _buildEducationCard(
               icon: Icons.help_outline,
               title: 'Quiz',
               subtitle: '10 Pertanyan',
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QuizScreen()),
+                );
+              },
             ),
           ],
         ),
