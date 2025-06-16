@@ -9,20 +9,34 @@ class FoodGroupsGuideScreen extends StatefulWidget {
 }
 
 class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
-  String selectedGroup = 'Carbohydrates';
+  String selectedGroup = 'Karbohidrat';
 
   final Map<String, String> groupDescriptions = {
-    'Proteins':
-        'Sources like meat, fish, eggs, and legumes help build and repair body tissues.',
-    'Carbohydrates':
-        'Sources like rice, bread, pasta, and potatoes help provide energy for the body and brain to function properly.',
-    'Vegetables':
-        'Vegetables are rich in vitamins, minerals, and fiber that support good health.',
-    'Fruits':
-        'Fruits provide essential nutrients and antioxidants for overall well-being.',
-    'Dairy':
-        'Dairy products like milk and cheese are important sources of calcium and vitamin D.',
+    'Protein':
+        'Sumber seperti daging, ikan, telur, dan kacang-kacangan membantu membangun dan memperbaiki jaringan tubuh.',
+    'Karbohidrat':
+        'Sumber seperti nasi, roti, pasta, dan kentang memberikan energi untuk tubuh dan otak agar berfungsi dengan baik.',
+    'Sayuran':
+        'Sayuran kaya akan vitamin, mineral, dan serat yang mendukung kesehatan tubuh.',
+    'Buah-buahan':
+        'Buah-buahan memberikan nutrisi penting dan antioksidan untuk kesehatan secara keseluruhan.',
+    'Produk Susu':
+        'Produk susu seperti susu dan keju merupakan sumber kalsium dan vitamin D yang penting.',
+    'Lemak':
+        'Sumber energi, membantu penyerapan vitamin larut lemak (A, D, E, K), melindungi organ, dan menjaga kesehatan otak.',
+    'Vitamin':
+        'Senyawa organik yang dibutuhkan tubuh dalam jumlah kecil namun sangat penting, untuk metabolisme, pertumbuhan, dan pemeliharaan kesehatan',
   };
+
+  final List<String> foodGroups = [
+    'Protein',
+    'Karbohidrat',
+    'Sayuran',
+    'Buah-buahan',
+    'Produk Susu',
+    'Lemak',
+    'Vitamin',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +58,7 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                   ),
                   const Expanded(
                     child: Text(
-                      'Food Groups Guide',
+                      'Panduan Nutrisi',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -53,21 +67,15 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-                  const SizedBox(width: 48), // balance for icon spacing
+                  const SizedBox(width: 48),
                 ],
               ),
             ),
 
             const SizedBox(height: 12),
 
-            // Food group buttons
-            ...[
-              'Proteins',
-              'Carbohydrates',
-              'Vegetables',
-              'Fruits',
-              'Dairy',
-            ].map((group) {
+            // Tombol kelompok makanan
+            ...foodGroups.map((group) {
               final isSelected = group == selectedGroup;
               return Padding(
                 padding: const EdgeInsets.symmetric(
@@ -91,16 +99,27 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  child: Text(group, style: const TextStyle(fontSize: 16)),
+                  child: Container(
+                    alignment: Alignment.center,
+                    width: double.infinity,
+                    child: Text(
+                      group,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
                 ),
               );
             }),
 
             const SizedBox(height: 20),
 
-            // Description box
+            // Kotak deskripsi
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
@@ -112,7 +131,7 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                   color: Colors.white,
                 ),
                 child: Text(
-                  '$selectedGroup: ${groupDescriptions[selectedGroup]}',
+                  '$selectedGroup: ${groupDescriptions[selectedGroup] ?? 'Deskripsi tidak tersedia.'}',
                   style: const TextStyle(fontSize: 14),
                 ),
               ),
@@ -120,7 +139,7 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
 
             const SizedBox(height: 20),
 
-            // QUIZ button
+            // Tombol Quiz
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: SizedBox(
@@ -129,7 +148,9 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => const QuizApp()),
+                      MaterialPageRoute(
+                        builder: (context) => const QuizScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -140,7 +161,7 @@ class _FoodGroupsGuideScreenState extends State<FoodGroupsGuideScreen> {
                     ),
                   ),
                   child: const Text(
-                    'QUIZ>>',
+                    'KUIS >>',
                     style: TextStyle(fontSize: 16, color: Colors.black),
                   ),
                 ),

@@ -55,17 +55,8 @@ class _EducationScreenState extends State<EducationScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Edukasi Nutrisi',
-          style: TextStyle(color: Colors.black),
-        ),
+        title: const Text('Edukasi', style: TextStyle(color: Colors.black)),
         centerTitle: true,
-        actions: const [
-          Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.bookmark_border, color: Colors.black),
-          ),
-        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -96,8 +87,8 @@ class _EducationScreenState extends State<EducationScreen> {
             const SizedBox(height: 16),
             _buildEducationCard(
               icon: Icons.auto_graph,
-              title: 'Food Groups Guide',
-              subtitle: 'Interactive infographic',
+              title: 'Panduan Nutrisi',
+              subtitle: 'Infografis Interaktif',
               onTap: () {
                 Navigator.push(
                   context,

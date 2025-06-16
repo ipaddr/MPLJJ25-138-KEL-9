@@ -1,8 +1,12 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'education.dart';
 import 'menu_recomendation.dart';
 import 'progress.dart';
 import 'profil.dart';
+import 'chatbot.dart';
+import 'history.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,6 +17,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final int _currentIndex = 0;
+
+  User? _currentUser;
+  bool _isLoading = true;
+
+  String _username = '';
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
@@ -41,8 +50,45 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<void> _loadUsername() async {
+    _currentUser = FirebaseAuth.instance.currentUser;
+
+    if (_currentUser == null) return;
+
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_currentUser!.uid)
+              .get();
+
+      if (doc.exists) {
+        setState(() {
+          _username = doc['username'] ?? '';
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint("Gagal mengambil username: $e");
+
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUsername();
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6EC),
       body: Column(
@@ -50,7 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
           // Custom Header
           Container(
             color: Colors.orange,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const EdgeInsets.only(left: 16, top: 40, bottom: 12),
             child: Row(
               children: [
                 const CircleAvatar(
@@ -61,14 +107,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
+                  children: [
+                    const Text(
                       'Selamat datang kembali',
                       style: TextStyle(color: Colors.black54, fontSize: 14),
                     ),
                     Text(
-                      'Sarah Wilson',
-                      style: TextStyle(
+                      _username,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -76,7 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ),
                 const Spacer(),
-                const Icon(Icons.notifications_none, color: Colors.black),
               ],
             ),
           ),
@@ -176,7 +221,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-
       // Tombol chatbot
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
