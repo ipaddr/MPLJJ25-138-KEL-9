@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatbotScreen extends StatefulWidget {
   const ChatbotScreen({super.key});
@@ -9,17 +12,76 @@ class ChatbotScreen extends StatefulWidget {
 
 class _ChatbotScreenState extends State<ChatbotScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages =
-      []; // {'sender': 'user'/'bot', 'text': '...'}
 
-  void _sendMessage() {
+  final List<Map<String, String>> _messages = []; // {sender, text}
+
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Pesan sambutan dari bot
+    _messages.add({
+      'sender': 'bot',
+      'text':
+          'Jika ingin rekomendasi makanan sehat, silakan ketikkan:\n\n"Rekomendasi Makanan Untuk:\nUmur :\n\nGender :\n\nBerat :\n\nTinggi :"',
+    });
+  }
+
+  Future<void> _sendMessage() async {
     String message = _controller.text.trim();
-    if (message.isNotEmpty) {
+
+    if (message.isEmpty) return;
+
+    setState(() {
+      _messages.add({'sender': 'user', 'text': message});
+      _isLoading = true;
+    });
+
+    _controller.clear();
+
+    try {
+      // Panggil Gemini API
+      final response = await http.post(
+        Uri.parse(
+          'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDVvCoX3NvyItHh2gTuJPYVagdyEWVkE44',
+        ),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          "contents": [
+            {
+              "parts": [
+                {"text": message},
+              ],
+            },
+          ],
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final botText = data['candidates'][0]['content']['parts'][0]['text'];
+
+        setState(() {
+          _messages.add({'sender': 'bot', 'text': botText.trim()});
+        });
+      } else {
+        setState(() {
+          _messages.add({
+            'sender': 'bot',
+            'text': 'Gagal mendapatkan respon dari Gemini!',
+          });
+        });
+      }
+    } catch (e) {
       setState(() {
-        _messages.add({'sender': 'user', 'text': message});
-        _messages.add({'sender': 'bot', 'text': 'Response to: $message'});
+        _messages.add({'sender': 'bot', 'text': 'Terjadi kesalahan: $e'});
       });
-      _controller.clear();
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -40,7 +102,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
             bottomRight: Radius.circular(isUser ? 0 : 16),
           ),
         ),
-        child: Text(text, style: const TextStyle(color: Colors.black)),
+        child: MarkdownBody(data: text), // <- Menggunakan MarkdownBody
       ),
     );
   }
@@ -55,7 +117,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text('Chatbot', style: TextStyle(color: Colors.black)),
+        title: const Text('NutriBot', style: TextStyle(color: Colors.black)),
         centerTitle: true,
       ),
       body: Column(
@@ -71,6 +133,11 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
               },
             ),
           ),
+          if (_isLoading)
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: CircularProgressIndicator(color: Colors.orange),
+            ),
           const Divider(height: 1),
           Padding(
             padding: const EdgeInsets.all(12),
@@ -80,7 +147,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                   child: TextField(
                     controller: _controller,
                     decoration: InputDecoration(
-                      hintText: 'Message',
+                      hintText: 'Tanya sesuatu...',
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 12,
                       ),
@@ -93,6 +160,8 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
                         borderSide: const BorderSide(color: Colors.orange),
                       ),
                     ),
+                    maxLines: null,
+                    textInputAction: TextInputAction.newline,
                   ),
                 ),
                 const SizedBox(width: 8),

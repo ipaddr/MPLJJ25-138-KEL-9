@@ -9,7 +9,7 @@ class NutritionVideoScreen extends StatelessWidget {
   final List<Map<String, String>> videoList = const [
     {
       'thumbnail': 'https://img.youtube.com/vi/OgmFQ3yGJXM/0.jpg',
-      'url': 'https://youtu.be/OgmFQ3yGJXM?si=-7D9BuFjuSKizOTv',
+      'url': 'https://www.youtube.com/watch?v=OgmFQ3yGJXM',
       'title': 'Gizi Buruk dan Nutrisi',
     },
     {
