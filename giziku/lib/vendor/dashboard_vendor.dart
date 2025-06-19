@@ -36,7 +36,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ? AppBar(
                 backgroundColor: const Color(0xFFFFA726),
                 title: const Text(
-                  'Distribution Dashboard',
+                  'Dashboard Distribusi',
                   style: TextStyle(
                     color: Colors.black,
                     fontWeight: FontWeight.bold,
@@ -91,9 +91,9 @@ class DashboardHomeContent extends StatelessWidget {
           // Total Meals & Avg Delivery Time
           Row(
             children: [
-              Expanded(child: statCard('Total Meals', '459')),
+              Expanded(child: statCard('Total Makanan', '459')),
               const SizedBox(width: 10),
-              Expanded(child: statCard('Average\nDelivery Time', '38m')),
+              Expanded(child: statCard('Waktu Rata-rata\nPengiriman', '38m')),
             ],
           ),
           const SizedBox(height: 20),
@@ -110,7 +110,7 @@ class DashboardHomeContent extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Feedback Score', style: TextStyle(fontSize: 16)),
+                const Text('Skor Kepuasan', style: TextStyle(fontSize: 16)),
                 const SizedBox(height: 10),
                 Row(
                   children: const [
@@ -136,7 +136,7 @@ class DashboardHomeContent extends StatelessWidget {
 
           // Delivery Stats
           const Text(
-            'Delivery Stats',
+            'Statistik Pengiriman',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -145,9 +145,9 @@ class DashboardHomeContent extends StatelessWidget {
           ),
           const SizedBox(height: 10),
 
-          statBox(color: Colors.orange, count: '5', label: 'In Progress'),
-          statBox(color: Colors.orange, count: '25', label: 'Completed'),
-          statBox(color: Colors.orange, count: '4', label: 'Rejected'),
+          statBox(color: Colors.orange, count: '5', label: 'Dalam Pengiriman'),
+          statBox(color: Colors.orange, count: '25', label: 'Selesai'),
+          statBox(color: Colors.orange, count: '4', label: 'Gagal'),
         ],
       ),
     );

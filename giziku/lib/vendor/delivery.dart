@@ -43,7 +43,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
           padding: const EdgeInsets.all(16),
           color: const Color(0xFFFFA726),
           child: const Text(
-            'Deliveries',
+            'Pengiriman',
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -85,7 +85,7 @@ class _DeliveryScreenState extends State<DeliveryScreen> {
                 ),
               ),
               child: const Text(
-                'Add Delivery',
+                'Tambah Pengiriman',
                 style: TextStyle(fontSize: 16, color: Colors.black),
               ),
             ),
@@ -160,7 +160,7 @@ class DeliveryCard extends StatelessWidget {
             if (status == DeliveryStatus.inProgress)
               const Icon(Icons.circle, color: Colors.green, size: 12)
             else if (meals != null)
-              Text('$meals meals', style: const TextStyle(fontSize: 14)),
+              Text('$meals Makanan', style: const TextStyle(fontSize: 14)),
           ],
         ),
       ),

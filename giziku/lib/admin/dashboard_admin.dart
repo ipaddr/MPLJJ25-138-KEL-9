@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'recipient.dart';
 import 'profil_admin.dart';
 import 'scanner.dart';
@@ -14,6 +16,10 @@ class DashboardAdmin extends StatefulWidget {
 
 class _DashboardAdminState extends State<DashboardAdmin> {
   final int _currentIndex = 0;
+
+  String _schoolName = '';
+  int _totalPesanan = 0;
+  bool _isLoading = true;
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
@@ -38,12 +44,49 @@ class _DashboardAdminState extends State<DashboardAdmin> {
     );
   }
 
+  Future<void> _fetchSchoolData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+      final recipientSnapshot =
+          await FirebaseFirestore.instance
+              .collection('recipients')
+              .where('userId', isEqualTo: user.uid)
+              .get();
+
+      setState(() {
+        _schoolName = userDoc['sekolah'] ?? 'Nama Sekolah';
+        _totalPesanan = recipientSnapshot.docs.length;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint("Gagal mengambil data: $e");
+      setState(() {
+        _schoolName = 'Gagal mengambil data';
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSchoolData();
+  }
+
   @override
   Widget build(BuildContext context) {
     const orangeColor = Color(0xFFFFA500);
 
     return Scaffold(
-      backgroundColor: Color(0xFFFEF7EF),
+      backgroundColor: const Color(0xFFFEF7EF),
       body: Column(
         children: [
           // Header
@@ -52,22 +95,24 @@ class _DashboardAdminState extends State<DashboardAdmin> {
             color: orangeColor,
             padding: const EdgeInsets.symmetric(vertical: 32),
             child: Column(
-              children: const [
-                Icon(Icons.school, size: 48, color: Colors.black),
-                SizedBox(height: 8),
-                Text(
+              children: [
+                const Icon(Icons.school, size: 48, color: Colors.black),
+                const SizedBox(height: 8),
+                const Text(
                   "Selamat Datang Admin",
                   style: TextStyle(color: Colors.black54, fontSize: 16),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  "SDN 12 Padang",
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
+                const SizedBox(height: 4),
+                _isLoading
+                    ? const CircularProgressIndicator()
+                    : Text(
+                      _schoolName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
               ],
             ),
           ),
@@ -80,15 +125,18 @@ class _DashboardAdminState extends State<DashboardAdmin> {
             child: Column(
               children: [
                 Row(
-                  children: const [
-                    StatBox(label: "Total Pesanan", value: "1,200"),
-                    SizedBox(width: 12),
-                    StatBox(label: "Distribusi", value: "1,100"),
+                  children: [
+                    StatBox(
+                      label: "Total Pesanan",
+                      value: _isLoading ? "..." : _totalPesanan.toString(),
+                    ),
+                    const SizedBox(width: 12),
+                    const StatBox(label: "Distribusi", value: "1,100"),
                   ],
                 ),
-                SizedBox(height: 12),
-                Row(
-                  children: const [
+                const SizedBox(height: 12),
+                const Row(
+                  children: [
                     StatBox(label: "Terkirim", value: "800"),
                     SizedBox(width: 12),
                     StatBox(label: "Sisa", value: "300"),
@@ -180,7 +228,7 @@ class StatBox extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 24),
         decoration: BoxDecoration(
-          color: Color(0xFFF2F4F8),
+          color: const Color(0xFFF2F4F8),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(

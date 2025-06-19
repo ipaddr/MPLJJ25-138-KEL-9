@@ -25,7 +25,7 @@ class _ChatbotScreenState extends State<ChatbotScreen> {
     _messages.add({
       'sender': 'bot',
       'text':
-          'Jika ingin rekomendasi makanan sehat, silakan ketikkan:\n\n"Rekomendasi Makanan Untuk:\nUmur :\n\nGender :\n\nBerat :\n\nTinggi :"',
+          'Halo Admin, saya siap membantu rekomendasi makanan bergizi untuk siswa.\nKetik saja:\n\n**"Rekomendasi Gizi:\nUmur:\nJenis Kelamin:\nBerat:\nTinggi:"**',
     });
   }
 
