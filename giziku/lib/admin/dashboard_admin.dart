@@ -1,7 +1,8 @@
+// lib/admin/dashboard_admin.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'recipient.dart';
+import 'daftar_recipient.dart';
 import 'profil_admin.dart';
 import 'scanner.dart';
 import 'laporan.dart';
@@ -15,19 +16,58 @@ class DashboardAdmin extends StatefulWidget {
 }
 
 class _DashboardAdminState extends State<DashboardAdmin> {
-  final int _currentIndex = 0;
+  int _currentIndex = 0;
 
   String _schoolName = '';
-  int _totalPesanan = 0;
   bool _isLoading = true;
+
+  Stream<QuerySnapshot>?
+  _allRecipientsStream; // Stream untuk total penerima (SEMUA)
+  Stream<QuerySnapshot>?
+  _distributedRecipientsStream; // Stream untuk penerima yang sudah TERDISTRIBUSI
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchSchoolData();
+    _setupRecipientStreams();
+  }
+
+  void _setupRecipientStreams() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      // Stream untuk MENGHITUNG SEMUA PENERIMA
+      _allRecipientsStream =
+          FirebaseFirestore.instance
+              .collection('recipients')
+              .where('userId', isEqualTo: user.uid)
+              .snapshots();
+
+      // Stream untuk MENGHITUNG PENERIMA YANG SUDAH TERDISTRIBUSI (dicentang)
+      _distributedRecipientsStream =
+          FirebaseFirestore.instance
+              .collection('recipients')
+              .where('userId', isEqualTo: user.uid)
+              .where(
+                'statusDistribusi',
+                isEqualTo: 'terdistribusi',
+              ) // Filter penting
+              .snapshots();
+    }
+  }
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
 
+    setState(() {
+      _currentIndex = index;
+    });
+
     Widget screen;
     switch (index) {
       case 0:
-        return;
+        screen = const DashboardAdmin();
+        break;
       case 1:
         screen = const ScannerScreen();
         break;
@@ -38,15 +78,25 @@ class _DashboardAdminState extends State<DashboardAdmin> {
         screen = const DashboardAdmin();
     }
 
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
-    );
+    if (index == 0) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => screen),
+      );
+    } else {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+    }
   }
 
   Future<void> _fetchSchoolData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() {
+        _schoolName = 'User tidak login';
+        _isLoading = false;
+      });
+      return;
+    }
 
     try {
       final userDoc =
@@ -55,19 +105,15 @@ class _DashboardAdminState extends State<DashboardAdmin> {
               .doc(user.uid)
               .get();
 
-      final recipientSnapshot =
-          await FirebaseFirestore.instance
-              .collection('recipients')
-              .where('userId', isEqualTo: user.uid)
-              .get();
-
       setState(() {
-        _schoolName = userDoc['sekolah'] ?? 'Nama Sekolah';
-        _totalPesanan = recipientSnapshot.docs.length;
+        _schoolName =
+            userDoc.exists && userDoc.data()!.containsKey('sekolah')
+                ? userDoc['sekolah']
+                : 'Nama Sekolah';
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint("Gagal mengambil data: $e");
+      debugPrint("Gagal mengambil data sekolah: $e");
       setState(() {
         _schoolName = 'Gagal mengambil data';
         _isLoading = false;
@@ -76,118 +122,214 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _fetchSchoolData();
-  }
-
-  @override
   Widget build(BuildContext context) {
     const orangeColor = Color(0xFFFFA500);
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       backgroundColor: const Color(0xFFFEF7EF),
-      body: Column(
-        children: [
-          // Header
-          Container(
-            width: double.infinity,
-            color: orangeColor,
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            child: Column(
-              children: [
-                const Icon(Icons.school, size: 48, color: Colors.black),
-                const SizedBox(height: 8),
-                const Text(
-                  "Selamat Datang Admin",
-                  style: TextStyle(color: Colors.black54, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                _isLoading
-                    ? const CircularProgressIndicator()
-                    : Text(
-                      _schoolName,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Header
+            Container(
+              width: double.infinity,
+              color: orangeColor,
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  const Icon(Icons.school, size: 48, color: Colors.black),
+                  const SizedBox(height: 8),
+                  const Text(
+                    "Selamat Datang Admin",
+                    style: TextStyle(color: Colors.black54, fontSize: 16),
+                  ),
+                  const SizedBox(height: 4),
+                  _isLoading
+                      ? const CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                      )
+                      : Text(
+                        _schoolName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
                       ),
-                    ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-          // Statistik box
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    StatBox(
-                      label: "Total Pesanan",
-                      value: _isLoading ? "..." : _totalPesanan.toString(),
-                    ),
-                    const SizedBox(width: 12),
-                    const StatBox(label: "Distribusi", value: "1,100"),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                const Row(
-                  children: [
-                    StatBox(label: "Terkirim", value: "800"),
-                    SizedBox(width: 12),
-                    StatBox(label: "Sisa", value: "300"),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 32),
-
-          // Tombol aksi
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ActionButton(
-                    icon: Icons.groups,
-                    label: "Input Data\nPenerima",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const RecipientDataScreen(),
-                        ),
-                      );
-                    },
+            // Statistik box (Disimplifikasi menjadi 3 statistik: Total Penerima, Total Distribusi, Sisa)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                children: [
+                  // Baris 1: Total Penerima dan Total Distribusi
+                  Row(
+                    children: [
+                      // Stat: Total Penerima (Semua yang diinput)
+                      user == null
+                          ? const StatBox(label: "Total Penerima", value: "0")
+                          : StreamBuilder<QuerySnapshot>(
+                            stream: _allRecipientsStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const StatBox(
+                                  label: "Total Penerima",
+                                  value: "...",
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return const StatBox(
+                                  label: "Total Penerima",
+                                  value: "Error",
+                                );
+                              }
+                              final total = snapshot.data?.docs.length ?? 0;
+                              return StatBox(
+                                label: "Total Penerima",
+                                value: total.toString(),
+                              );
+                            },
+                          ),
+                      const SizedBox(width: 12),
+                      // Stat: Total Distribusi (yang sudah dicentang)
+                      user == null
+                          ? const StatBox(label: "Total Distribusi", value: "0")
+                          : StreamBuilder<QuerySnapshot>(
+                            stream: _distributedRecipientsStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const StatBox(
+                                  label: "Total Distribusi",
+                                  value: "...",
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return const StatBox(
+                                  label: "Total Distribusi",
+                                  value: "Error",
+                                );
+                              }
+                              final distributedTotal =
+                                  snapshot.data?.docs.length ?? 0;
+                              return StatBox(
+                                label: "Total Distribusi",
+                                value: distributedTotal.toString(),
+                              );
+                            },
+                          ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ActionButton(
-                    icon: Icons.receipt_long,
-                    label: "Laporan\nDistribusi",
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const DistributionReportScreen(),
-                        ),
-                      );
-                    },
+                  const SizedBox(height: 12), // Spasi antar baris statistik
+                  // Baris 2: Sisa (hitung dari kedua stream)
+                  Row(
+                    children: [
+                      user == null
+                          ? const StatBox(label: "Sisa", value: "0")
+                          : StreamBuilder<QuerySnapshot>(
+                            stream: _allRecipientsStream, // Ambil total semua
+                            builder: (context, allSnapshot) {
+                              if (allSnapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const StatBox(
+                                  label: "Sisa",
+                                  value: "...",
+                                );
+                              }
+                              if (allSnapshot.hasError) {
+                                return const StatBox(
+                                  label: "Sisa",
+                                  value: "Error",
+                                );
+                              }
+                              final totalAll =
+                                  allSnapshot.data?.docs.length ?? 0;
+
+                              return StreamBuilder<QuerySnapshot>(
+                                stream:
+                                    _distributedRecipientsStream, // Ambil total terdistribusi
+                                builder: (context, distributedSnapshot) {
+                                  if (distributedSnapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return const StatBox(
+                                      label: "Sisa",
+                                      value: "...",
+                                    );
+                                  }
+                                  if (distributedSnapshot.hasError) {
+                                    return const StatBox(
+                                      label: "Sisa",
+                                      value: "Error",
+                                    );
+                                  }
+                                  final totalDistributed =
+                                      distributedSnapshot.data?.docs.length ??
+                                      0;
+                                  final remaining = totalAll - totalDistributed;
+                                  return StatBox(
+                                    label: "Sisa",
+                                    value: remaining.toString(),
+                                  );
+                                },
+                              );
+                            },
+                          ),
+                    ],
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+
+            const SizedBox(height: 32),
+
+            // Tombol aksi (tetap sama)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ActionButton(
+                      icon: Icons.groups,
+                      label: "Data Penerima",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DaftarSiswaScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ActionButton(
+                      icon: Icons.receipt_long,
+                      label: "Laporan\nDistribusi",
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const DistributionReportScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
-      // Tombol chatbot
       floatingActionButton: FloatingActionButton(
         backgroundColor: Colors.orange,
         child: const Icon(Icons.chat, color: Colors.black),
@@ -198,16 +340,16 @@ class _DashboardAdminState extends State<DashboardAdmin> {
           );
         },
       ),
-      // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         backgroundColor: orangeColor,
         selectedItemColor: Colors.black,
+        selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
         unselectedItemColor: Colors.black54,
         showUnselectedLabels: true,
         onTap: _onTabTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
@@ -216,6 +358,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   }
 }
 
+// StatBox dan ActionButton tetap sama
 class StatBox extends StatelessWidget {
   final String label;
   final String value;

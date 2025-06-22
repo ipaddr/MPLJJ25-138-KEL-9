@@ -135,7 +135,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         showUnselectedLabels: true,
         onTap: _onTabTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],

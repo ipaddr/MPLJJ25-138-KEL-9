@@ -163,7 +163,7 @@ class _ProfileAdminState extends State<ProfileAdmin> {
                         },
                         icon: const Icon(Icons.logout, color: Colors.black),
                         label: const Text(
-                          'Logout',
+                          'Keluar',
                           style: TextStyle(color: Colors.black),
                         ),
                         style: ElevatedButton.styleFrom(
@@ -186,7 +186,7 @@ class _ProfileAdminState extends State<ProfileAdmin> {
         showUnselectedLabels: true,
         onTap: _onTabTapped,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Beranda'),
           BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],

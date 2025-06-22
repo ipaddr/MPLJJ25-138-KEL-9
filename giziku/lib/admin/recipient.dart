@@ -1,9 +1,7 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+// lib/recipient.dart
 import 'package:flutter/material.dart';
-import 'dashboard_admin.dart';
-import 'profil_admin.dart';
-import 'scanner.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RecipientDataScreen extends StatefulWidget {
   const RecipientDataScreen({super.key});
@@ -18,37 +16,17 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
   final TextEditingController _gradeController = TextEditingController();
   final TextEditingController _classController = TextEditingController();
 
-  final int _currentIndex = 2;
   String? _selectedGender;
   final List<String> genderOptions = ['Laki-laki', 'Perempuan'];
 
-  void _onTabTapped(int index) {
-    Widget destination;
-    switch (index) {
-      case 0:
-        destination = const DashboardAdmin();
-        break;
-      case 1:
-        destination = const ScannerScreen();
-        break;
-      case 2:
-        destination = const ProfileAdmin();
-        break;
-      default:
-        destination = const DashboardAdmin();
-    }
-
-    if (index != _currentIndex) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => destination),
-      );
-    }
-  }
-
   Future<void> _saveRecipientData() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Anda harus login untuk menyimpan data.")),
+      );
+      return;
+    }
 
     if (_nameController.text.isEmpty ||
         _dobController.text.isEmpty ||
@@ -70,18 +48,21 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         'grade': _gradeController.text,
         'kelas': _classController.text,
         'timestamp': FieldValue.serverTimestamp(),
+        'statusDistribusi': 'belum_terdistribusi', // <<< TAMBAHKAN INI
+        'tanggalDistribusi': null, // <<< TAMBAHKAN INI, awalnya null
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Data penerima berhasil disimpan")),
       );
 
-      // Bersihkan form
       _nameController.clear();
       _dobController.clear();
       _gradeController.clear();
       _classController.clear();
       setState(() => _selectedGender = null);
+
+      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(
         context,
@@ -97,11 +78,14 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
       backgroundColor: const Color(0xFFFEF7EF),
       appBar: AppBar(
         backgroundColor: orangeColor,
-        leading: const BackButton(color: Colors.black),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
         centerTitle: true,
         title: const Text(
-          'Data Penerima',
-          style: TextStyle(color: Colors.black),
+          'Tambah Data Penerima',
+          style: TextStyle(color: Colors.white),
         ),
       ),
       body: SingleChildScrollView(
@@ -111,7 +95,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
             buildLabel("Nama"),
             buildTextField(
               controller: _nameController,
-              hintText: "Nama lengkap",
+              hintText: "Nama Lengkap",
             ),
             buildLabel("Tanggal Lahir"),
             TextField(
@@ -142,7 +126,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
             buildLabel("Jenis Kelamin"),
             DropdownButtonFormField<String>(
               value: _selectedGender,
-              hint: const Text("Pilih jenis kelamin"),
+              hint: const Text("Pilih Jenis Kelamin"),
               items:
                   genderOptions
                       .map((g) => DropdownMenuItem(value: g, child: Text(g)))
@@ -154,10 +138,10 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
                 ),
               ),
             ),
-            buildLabel("Grade"),
-            buildTextField(controller: _gradeController, hintText: "ex: 5"),
-            buildLabel("Class"),
-            buildTextField(controller: _classController, hintText: "ex: A"),
+            buildLabel("Tingkat"),
+            buildTextField(controller: _gradeController, hintText: "Ex: 5"),
+            buildLabel("Kelas"),
+            buildTextField(controller: _classController, hintText: "Ex: A"),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
@@ -171,26 +155,14 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
                   ),
                 ),
                 child: const Text(
-                  "Save",
-                  style: TextStyle(color: Colors.black),
+                  "Simpan",
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        backgroundColor: orangeColor,
-        selectedItemColor: Colors.black,
-        unselectedItemColor: Colors.black54,
-        showUnselectedLabels: true,
-        onTap: _onTabTapped,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.qr_code), label: 'Scan'),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
-        ],
       ),
     );
   }

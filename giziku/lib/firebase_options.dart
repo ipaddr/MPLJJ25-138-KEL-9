@@ -78,4 +78,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'giziku-c2e7c.firebasestorage.app',
     measurementId: 'G-40E817PVD0',
   );
+
 }
