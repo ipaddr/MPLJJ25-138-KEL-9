@@ -1,111 +1,199 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MealDetailScreen extends StatelessWidget {
-  const MealDetailScreen({super.key});
+  // Menerima seluruh data meal dalam bentuk Map
+  final Map<String, dynamic> mealData;
+
+  const MealDetailScreen({super.key, required this.mealData});
 
   @override
   Widget build(BuildContext context) {
+    // Ekstrak data dari Map dengan aman
+    final String title = mealData['nama'] ?? 'Detail Menu';
+    final String description = mealData['deskripsi'] ?? 'Tidak ada deskripsi.';
+    final String imageUrl = mealData['image_url'] ?? '';
+    final int time = mealData['waktu_persiapan'] ?? 0;
+    final int calories = mealData['kalori'] ?? 0;
+
+    // Ekstrak data array untuk bahan dan langkah-langkah
+    // Konversi dari List<dynamic> ke List<String>
+    final List<String> ingredients = List<String>.from(mealData['bahan'] ?? []);
+    final List<String> steps = List<String>.from(mealData['tahapan'] ?? []);
+
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF5E1),
+      backgroundColor: Colors.white,
       appBar: AppBar(
+        title: Text(title),
         backgroundColor: Colors.orange,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {
-            Navigator.pop(context); // agar tombol kembali bisa berfungsi
-          },
-        ),
-        title: const Text(
-          'Grilled Salmon Bowl',
-          style: TextStyle(color: Colors.black),
-        ),
-        centerTitle: true,
+        elevation: 1,
       ),
       body: SingleChildScrollView(
-        // <- Tambahkan ini
-        padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image placeholder
-            Container(
-              width: double.infinity,
-              height: 180,
-              decoration: BoxDecoration(
+            // --- GAMBAR MAKANAN ---
+            if (imageUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 250,
+                placeholder:
+                    (context, url) => Container(
+                      height: 250,
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator()),
+                    ),
+                errorWidget:
+                    (context, url, error) => Container(
+                      height: 250,
+                      color: Colors.grey[300],
+                      child: const Center(
+                        child: Icon(Icons.broken_image, size: 50),
+                      ),
+                    ),
+              )
+            else
+              Container(
+                height: 250,
+                width: double.infinity,
                 color: Colors.grey[300],
-                borderRadius: BorderRadius.circular(12),
+                child: const Center(
+                  child: Text(
+                    'Meal Image',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
               ),
-              child: const Center(
-                child: Text('Meal Image', style: TextStyle(color: Colors.grey)),
-              ),
-            ),
-            const SizedBox(height: 16),
 
-            // Meal title and description
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Grilled Salmon Bowl',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Fresh salmon with quinoa, avocado, and seasonal vegetables',
-                style: TextStyle(fontSize: 14),
-              ),
-            ),
-            const SizedBox(height: 8),
-
-            // Time and Calories
-            Row(
-              children: const [
-                Icon(Icons.access_time, size: 16),
-                SizedBox(width: 4),
-                Text('25 mins'),
-                SizedBox(width: 16),
-                Icon(Icons.local_fire_department, size: 16),
-                SizedBox(width: 4),
-                Text('420 kcal'),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Ingredients and Preparation card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.orange),
-                borderRadius: BorderRadius.circular(12),
-                color: Colors.white,
-              ),
+            // --- KONTEN DETAIL ---
+            Padding(
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
+                children: [
+                  // Judul
                   Text(
-                    'Ingredients',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    title,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 24,
+                    ),
                   ),
-                  SizedBox(height: 8),
-                  Text('• 100gr Salmon'),
-                  Text('• 1/2 Avocado'),
-                  Text('• 1 cup Quinoa'),
-                  Text('• Olive oil, Salt, Pepper'),
-                  SizedBox(height: 16),
+                  const SizedBox(height: 8),
+
+                  // Deskripsi
                   Text(
-                    'Preparation Steps',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    description,
+                    style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                   ),
-                  SizedBox(height: 8),
-                  Text('1. Cook the quinoa according to package instruction'),
-                  Text('2. Grill the salmon until fully cooked'),
-                  Text('3. Slice the avocado'),
+                  const SizedBox(height: 16),
+
+                  // Info Waktu dan Kalori
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.timer_outlined,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text('$time mins', style: const TextStyle(fontSize: 15)),
+                      const SizedBox(width: 20),
+                      Icon(
+                        Icons.local_fire_department_outlined,
+                        color: Colors.grey[600],
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$calories kcal',
+                        style: const TextStyle(fontSize: 15),
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 32, thickness: 1),
+
+                  // --- BAHAN-BAHAN ---
+                  const Text(
+                    'Bahan-Bahan',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  // Menampilkan daftar bahan
+                  if (ingredients.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children:
+                          ingredients.map((ingredient) {
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: 4.0,
+                                left: 8,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    '• ',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  Expanded(
+                                    child: Text(
+                                      ingredient,
+                                      style: const TextStyle(fontSize: 16),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                    )
+                  else
+                    const Text('Bahan-bahan tidak tersedia.'),
+
+                  const Divider(height: 32, thickness: 1),
+
+                  // --- LANGKAH PERSIAPAN ---
+                  const Text(
+                    'Langkah-Langkah',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ),
+                  const SizedBox(height: 8),
+                  // Menampilkan daftar langkah
+                  if (steps.isNotEmpty)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: List.generate(steps.length, (index) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0, left: 8),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${index + 1}. ',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  steps[index],
+                                  style: const TextStyle(fontSize: 16),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }),
+                    )
+                  else
+                    const Text('Langkah-langkah tidak tersedia.'),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
