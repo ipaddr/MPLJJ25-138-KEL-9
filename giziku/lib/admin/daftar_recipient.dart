@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'recipient.dart';
-import 'dashboard_admin.dart';
+import 'detail_recipient.dart'; // Import halaman detail
 
 class DaftarSiswaScreen extends StatefulWidget {
   const DaftarSiswaScreen({super.key});
@@ -29,7 +29,7 @@ class _DaftarSiswaScreenState extends State<DaftarSiswaScreen> {
                 isDistributed ? FieldValue.serverTimestamp() : null,
           });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status distribusi berhasil diperbarui.')),
+        const SnackBar(content: Text('Status distribusi berhasil diperbarui.')),
       );
     } catch (e) {
       debugPrint("Error updating distribution status: $e");
@@ -96,67 +96,81 @@ class _DaftarSiswaScreenState extends State<DaftarSiswaScreen> {
                       final bool isDistributed =
                           (data['statusDistribusi'] == 'terdistribusi');
 
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 12.0),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16.0,
-                            vertical: 8.0,
-                          ),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      data['nama'] ?? 'Nama Tidak Ada',
-                                      style: const TextStyle(
-                                        fontSize: 16.0,
-                                        fontWeight: FontWeight.bold,
+                      // **PERBAIKAN:** Membungkus Card dengan InkWell untuk navigasi
+                      return InkWell(
+                        onTap: () {
+                          // Navigasi ke halaman detail dengan mengirim ID dokumen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder:
+                                  (context) =>
+                                      RecipientDetailScreen(recipientId: docId),
+                            ),
+                          );
+                        },
+                        child: Card(
+                          margin: const EdgeInsets.only(bottom: 12.0),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16.0,
+                              vertical: 8.0,
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        data['nama'] ?? 'Nama Tidak Ada',
+                                        style: const TextStyle(
+                                          fontSize: 16.0,
+                                          fontWeight: FontWeight.bold,
+                                        ),
                                       ),
-                                    ),
-                                    Text(
-                                      data['jenisKelamin'] ??
-                                          'Jenis Kelamin Tidak Ada',
-                                      style: const TextStyle(
-                                        fontSize: 14.0,
-                                        color: Colors.grey,
+                                      Text(
+                                        data['jenisKelamin'] ??
+                                            'Jenis Kelamin Tidak Ada',
+                                        style: const TextStyle(
+                                          fontSize: 14.0,
+                                          color: Colors.grey,
+                                        ),
                                       ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 20),
-                              Text(
-                                data['grade'] ?? 'Grade Tidak Ada',
-                                style: const TextStyle(
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.bold,
+                                const SizedBox(width: 20),
+                                Text(
+                                  data['grade'] ?? 'Grade Tidak Ada',
+                                  style: const TextStyle(
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 5),
-                              Text(
-                                data['kelas'] ?? 'Kelas Tidak Ada',
-                                style: const TextStyle(
-                                  fontSize: 16.0,
-                                  fontWeight: FontWeight.bold,
+                                const SizedBox(width: 5),
+                                Text(
+                                  data['kelas'] ?? 'Kelas Tidak Ada',
+                                  style: const TextStyle(
+                                    fontSize: 16.0,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
-                              ),
-                              Checkbox(
-                                value:
-                                    isDistributed, // <<< Nilai checkbox dari Firestore
-                                onChanged: (bool? newValue) {
-                                  if (newValue != null) {
-                                    _updateDistributionStatus(
-                                      docId,
-                                      newValue,
-                                    ); // <<< Panggil fungsi update
-                                  }
-                                },
-                                activeColor: Colors.orange,
-                              ),
-                            ],
+                                Checkbox(
+                                  value: isDistributed,
+                                  onChanged: (bool? newValue) {
+                                    if (newValue != null) {
+                                      _updateDistributionStatus(
+                                        docId,
+                                        newValue,
+                                      );
+                                    }
+                                  },
+                                  activeColor: Colors.orange,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       );

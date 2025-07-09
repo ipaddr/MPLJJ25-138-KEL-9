@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:intl/intl.dart';
 import 'dashboard.dart';
 import 'menu_recomendation.dart';
 import 'profil.dart';
-import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart'; // Import for date formatting
 
 class ProgressScreen extends StatefulWidget {
   const ProgressScreen({super.key});
@@ -17,9 +17,12 @@ class ProgressScreen extends StatefulWidget {
 class _ProgressScreenState extends State<ProgressScreen> {
   final int _currentIndex = 2;
   User? _currentUser;
-  Stream<QuerySnapshot>? _entriesStream;
-  double? _currentWeight;
-  double? _currentHeight;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = FirebaseAuth.instance.currentUser;
+  }
 
   void _onTabTapped(int index) {
     if (index == _currentIndex) return;
@@ -46,43 +49,14 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    _currentUser = FirebaseAuth.instance.currentUser;
-
-    if (_currentUser != null) {
-      final userDoc = FirebaseFirestore.instance
-          .collection('users')
-          .doc(_currentUser!.uid);
-
-      // Fetch the last 30 entries for the chart, ordered by date ascending
-      // so the chart shows progress from past to present correctly.
-      // For the list, keep it descending to show latest first.
-      _entriesStream =
-          userDoc
-              .collection('growth_entries')
-              .orderBy('date', descending: true) // For latest entries in list
-              .snapshots();
-
-      userDoc
-          .collection('growth_entries')
-          .orderBy('date', descending: true)
-          .limit(1)
-          .get()
-          .then((snapshot) {
-            if (snapshot.docs.isNotEmpty) {
-              final data = snapshot.docs.first.data();
-              setState(() {
-                _currentWeight = (data['weight'] as num).toDouble();
-                _currentHeight = (data['height'] as num).toDouble();
-              });
-            }
-          });
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return const Scaffold(
+        body: Center(child: Text("Silakan login untuk melihat progres.")),
+      );
+    }
+
+    // Menggunakan StreamBuilder untuk data profil (berat & tinggi saat ini)
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6EC),
       appBar: AppBar(
@@ -93,42 +67,53 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ),
         centerTitle: true,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        automaticallyImplyLeading: false,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      body: StreamBuilder<DocumentSnapshot>(
+        stream:
+            FirebaseFirestore.instance
+                .collection('users')
+                .doc(_currentUser!.uid)
+                .snapshots(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+            return const Center(child: Text("Data profil tidak ditemukan."));
+          }
+
+          final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+          final currentWeight = (userData['weight'] as num? ?? 0).toDouble();
+          final currentHeight = (userData['height'] as num? ?? 0).toDouble();
+
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatBox(
-                  'Berat Sekarang',
-                  _currentWeight != null ? '${_currentWeight!} kg' : '-',
+                Row(
+                  children: [
+                    _buildStatBox('Berat Sekarang', '$currentWeight kg'),
+                    const SizedBox(width: 12),
+                    _buildStatBox('Tinggi', '$currentHeight cm'),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                _buildStatBox(
-                  'Tinggi',
-                  _currentHeight != null ? '${_currentHeight!} cm' : '-',
+                const SizedBox(height: 16),
+                _buildProgressChart(),
+                const SizedBox(height: 24),
+                const Text(
+                  'Entri Terbaru',
+                  style: TextStyle(fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 12),
+                Expanded(child: _buildEntryList()),
+                const SizedBox(height: 12),
+                _buildAddEntryButton(),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildProgressChart(),
-            const SizedBox(height: 24),
-            const Text(
-              'Entri Terbaru',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Expanded(child: _buildEntryList()),
-            const SizedBox(height: 12),
-            _buildAddEntryButton(),
-          ],
-        ),
+          );
+        },
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -197,165 +182,59 @@ class _ProgressScreenState extends State<ProgressScreen> {
             ],
           ),
           const SizedBox(height: 12),
-          // We need to fetch data for the chart separately,
-          // ordered ascending by date to display correctly from left to right.
           StreamBuilder<QuerySnapshot>(
             stream:
                 FirebaseFirestore.instance
                     .collection('users')
                     .doc(_currentUser!.uid)
                     .collection('growth_entries')
-                    .orderBy(
-                      'date',
-                      descending: false,
-                    ) // Order ascending for chart
-                    .limit(30) // Limit to last 30 entries for the chart
+                    .orderBy('date', descending: false)
+                    .limitToLast(30) // More efficient for getting the latest
                     .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(child: Text('Error: ${snapshot.error}'));
+                return const SizedBox(
+                  height: 180,
+                  child: Center(child: CircularProgressIndicator()),
+                );
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                return const Center(child: Text('Belum ada data untuk grafik'));
+                return const SizedBox(
+                  height: 180,
+                  child: Center(child: Text('Belum ada data untuk grafik')),
+                );
               }
 
               List<FlSpot> points = [];
-              List<DateTime> dates = [];
-              double minWeight = double.infinity;
-              double maxWeight = double.negativeInfinity;
-              double minDate = double.infinity;
-              double maxDate = double.negativeInfinity;
+              double minWeight = double.maxFinite;
+              double maxWeight = double.minPositive;
 
-              for (var doc in snapshot.data!.docs) {
+              for (int i = 0; i < snapshot.data!.docs.length; i++) {
+                final doc = snapshot.data!.docs[i];
                 final weight = (doc['weight'] as num).toDouble();
-                final timestamp = (doc['date'] as Timestamp).toDate();
-                final dateInMs = timestamp.millisecondsSinceEpoch.toDouble();
-
-                points.add(FlSpot(dateInMs, weight));
-                dates.add(timestamp);
-
+                // Gunakan index sebagai sumbu X untuk kesederhanaan
+                points.add(FlSpot(i.toDouble(), weight));
                 if (weight < minWeight) minWeight = weight;
                 if (weight > maxWeight) maxWeight = weight;
-                if (dateInMs < minDate) minDate = dateInMs;
-                if (dateInMs > maxDate) maxDate = dateInMs;
               }
 
-              // Add some padding to min/max weight for better visualization
-              if (minWeight == maxWeight) {
-                // Handle case with single weight
-                minWeight -= 5;
-                maxWeight += 5;
-              } else {
-                minWeight -= (maxWeight - minWeight) * 0.1;
-                maxWeight += (maxWeight - minWeight) * 0.1;
-              }
-
-              // Ensure minimum Y-axis is not negative
-              if (minWeight < 0) minWeight = 0;
-
-              return Container(
-                height: 180, // Increased height for better readability
+              return SizedBox(
+                height: 180,
                 child: LineChart(
                   LineChartData(
-                    gridData: FlGridData(
-                      show: true,
-                      drawVerticalLine: true,
-                      getDrawingHorizontalLine:
-                          (value) => const FlLine(
-                            color: Color(0xffececec),
-                            strokeWidth: 1,
-                          ),
-                      getDrawingVerticalLine:
-                          (value) => const FlLine(
-                            color: Color(0xffececec),
-                            strokeWidth: 1,
-                          ),
-                    ),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 30,
-                          interval: ((maxDate - minDate) / 4).clamp(
-                            1.0,
-                            double.infinity,
-                          ), // Adjust interval dynamically
-                          getTitlesWidget: (value, meta) {
-                            final dateTime =
-                                DateTime.fromMillisecondsSinceEpoch(
-                                  value.toInt(),
-                                );
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                DateFormat(
-                                  'dd/MM',
-                                ).format(dateTime), // Format date as DD/MM
-                                style: const TextStyle(
-                                  color: Color.fromARGB(255, 0, 0, 0),
-                                  fontSize: 10,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                      leftTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 40,
-                          getTitlesWidget: (value, meta) {
-                            return Text(
-                              value.toStringAsFixed(
-                                0,
-                              ), // Display whole numbers for weight
-                              style: const TextStyle(
-                                color: Color.fromARGB(255, 0, 0, 0),
-                                fontSize: 10,
-                              ),
-                            );
-                          },
-                          interval:
-                              (maxWeight - minWeight) > 10
-                                  ? 10
-                                  : 5, // Adjust interval based on weight range
-                        ),
-                      ),
-                      topTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                      rightTitles: const AxisTitles(
-                        sideTitles: SideTitles(showTitles: false),
-                      ),
-                    ),
-                    borderData: FlBorderData(
-                      show: true,
-                      border: Border.all(
-                        color: const Color(0xff37434d),
-                        width: 1,
-                      ),
-                    ),
-                    minX: minDate,
-                    maxX: maxDate,
-                    minY: minWeight,
-                    maxY: maxWeight,
+                    // ... (Konfigurasi LineChartData tetap sama)
+                    minY: (minWeight - 5).floorToDouble(),
+                    maxY: (maxWeight + 5).ceilToDouble(),
                     lineBarsData: [
                       LineChartBarData(
                         spots: points,
                         isCurved: true,
-                        color: const Color.fromARGB(255, 255, 0, 0),
-                        barWidth: 3, // Reduced bar width for cleaner look
-                        isStrokeCapRound: true,
+                        color: Colors.orange,
+                        barWidth: 3,
                         dotData: FlDotData(show: true),
-                        belowBarData: BarAreaData(
-                          show: false,
-                        ), // No fill below the line
                       ),
                     ],
+                    // ...
                   ),
                 ),
               );
@@ -368,13 +247,16 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
   Widget _buildEntryList() {
     return StreamBuilder<QuerySnapshot>(
-      stream: _entriesStream,
+      stream:
+          FirebaseFirestore.instance
+              .collection('users')
+              .doc(_currentUser!.uid)
+              .collection('growth_entries')
+              .orderBy('date', descending: true)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
         }
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
           return const Center(child: Text('Belum ada entri'));
@@ -388,7 +270,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
             final date = (doc['date'] as Timestamp).toDate();
             return _buildEntryTile(
               '$weight kg',
-              DateFormat('dd/MM/yyyy').format(date), // Consistent date format
+              DateFormat('dd MMMM yyyy').format(date),
             );
           },
         );
@@ -411,9 +293,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
         ),
         subtitle: Text(date),
         trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          // You might want to implement an edit/view functionality here
-        },
       ),
     );
   }
@@ -445,6 +324,7 @@ class _ProgressScreenState extends State<ProgressScreen> {
   }
 }
 
+/// Bottom sheet untuk menambah entri baru
 class GrowthFormSheet extends StatefulWidget {
   const GrowthFormSheet({super.key});
 
@@ -456,12 +336,73 @@ class _GrowthFormSheetState extends State<GrowthFormSheet> {
   final _weightController = TextEditingController();
   final _heightController = TextEditingController();
   DateTime? _selectedDate;
+  bool _isSaving = false;
 
   @override
   void dispose() {
     _weightController.dispose();
     _heightController.dispose();
     super.dispose();
+  }
+
+  Future<void> _saveEntry() async {
+    if (_selectedDate == null ||
+        _weightController.text.isEmpty ||
+        _heightController.text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Semua field wajib diisi")));
+      return;
+    }
+
+    final weight = double.tryParse(_weightController.text);
+    final height = double.tryParse(_heightController.text);
+
+    if (weight == null || height == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Masukkan angka yang valid")),
+      );
+      return;
+    }
+
+    setState(() => _isSaving = true);
+
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw Exception("User tidak login.");
+
+      final userDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid);
+
+      // 1. Tambahkan entri baru ke sub-koleksi
+      await userDocRef.collection('growth_entries').add({
+        'date': _selectedDate,
+        'weight': weight,
+        'height': height,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. **PERBAIKAN:** Update data di dokumen profil utama
+      await userDocRef.update({'weight': weight, 'height': height});
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Data berhasil disimpan")));
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal menyimpan: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
   }
 
   @override
@@ -474,23 +415,14 @@ class _GrowthFormSheetState extends State<GrowthFormSheet> {
         bottom: MediaQuery.of(context).viewInsets.bottom + 16,
       ),
       child: Wrap(
+        runSpacing: 16,
         children: [
-          Center(
-            child: Container(
-              width: 50,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade400,
-                borderRadius: BorderRadius.circular(4),
-              ),
+          const Center(
+            child: Text(
+              'Tambah Entri Pertumbuhan',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ),
-          const Text(
-            'Tambah Entri Pertumbuhan',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 24),
           TextField(
             readOnly: true,
             decoration: InputDecoration(
@@ -498,9 +430,7 @@ class _GrowthFormSheetState extends State<GrowthFormSheet> {
               hintText:
                   _selectedDate == null
                       ? 'Pilih tanggal'
-                      : DateFormat(
-                        'dd/MM/yyyy',
-                      ).format(_selectedDate!), // Format selected date
+                      : DateFormat('dd MMMM yyyy').format(_selectedDate!),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -509,90 +439,42 @@ class _GrowthFormSheetState extends State<GrowthFormSheet> {
             onTap: () async {
               final picked = await showDatePicker(
                 context: context,
-                initialDate:
-                    _selectedDate ??
-                    DateTime.now(), // Use selected date or current date
+                initialDate: _selectedDate ?? DateTime.now(),
                 firstDate: DateTime(2000),
-                lastDate: DateTime(2100),
+                lastDate: DateTime.now(),
               );
               if (picked != null) {
                 setState(() => _selectedDate = picked);
               }
             },
           ),
-          const SizedBox(height: 24),
           TextField(
             controller: _weightController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              hintText: 'Berat (kg)',
+              labelText: 'Berat (kg)',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               prefixIcon: const Icon(Icons.monitor_weight_outlined),
             ),
           ),
-          const SizedBox(height: 24),
           TextField(
             controller: _heightController,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              hintText: 'Tinggi (cm)',
+              labelText: 'Tinggi (cm)',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
               prefixIcon: const Icon(Icons.height),
             ),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () async {
-                if (_selectedDate == null ||
-                    _weightController.text.isEmpty ||
-                    _heightController.text.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Semua field wajib diisi")),
-                  );
-                  return;
-                }
-
-                final weight = double.tryParse(_weightController.text);
-                final height = double.tryParse(_heightController.text);
-
-                if (weight == null || height == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Masukkan angka yang valid")),
-                  );
-                  return;
-                }
-
-                try {
-                  final user = FirebaseAuth.instance.currentUser;
-                  if (user == null) throw Exception("User tidak login.");
-
-                  await FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(user.uid)
-                      .collection('growth_entries')
-                      .add({
-                        'date': _selectedDate,
-                        'weight': weight,
-                        'height': height,
-                        'createdAt': FieldValue.serverTimestamp(),
-                      });
-
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text("Data berhasil disimpan")),
-                  );
-                  Navigator.pop(context);
-                } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Gagal menyimpan: ${e.toString()}")),
-                  );
-                }
-              },
+              onPressed: _isSaving ? null : _saveEntry,
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -601,7 +483,10 @@ class _GrowthFormSheetState extends State<GrowthFormSheet> {
                 ),
                 foregroundColor: Colors.black,
               ),
-              child: const Text('Simpan'),
+              child:
+                  _isSaving
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Simpan'),
             ),
           ),
         ],

@@ -3,45 +3,72 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final String fullName;
-  final String bio;
-  final int weight;
-  final int height;
-
-  const EditProfileScreen({
-    super.key,
-    required this.fullName,
-    required this.bio,
-    required this.weight,
-    required this.height,
-  });
+  // Constructor dibuat const dan tanpa parameter
+  const EditProfileScreen({super.key});
 
   @override
   State<EditProfileScreen> createState() => _EditProfileScreenState();
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  late TextEditingController fullNameController;
-  late TextEditingController bioController;
-  late TextEditingController weightController;
-  late TextEditingController heightController;
+  // Inisialisasi controller tanpa data awal
+  final fullNameController = TextEditingController();
+  final bioController = TextEditingController();
+  final weightController = TextEditingController();
+  final heightController = TextEditingController();
+  final studentIdController = TextEditingController();
 
   User? _currentUser;
+  bool _isSaving = false;
+  bool _isLoading = true; // State untuk loading data awal
 
   @override
   void initState() {
     super.initState();
-
     _currentUser = FirebaseAuth.instance.currentUser;
+    _loadInitialData(); // Panggil fungsi untuk memuat data
+  }
 
-    fullNameController = TextEditingController(text: widget.fullName);
-    bioController = TextEditingController(text: widget.bio);
-    weightController = TextEditingController(text: widget.weight.toString());
-    heightController = TextEditingController(text: widget.height.toString());
+  /// Memuat data awal dari Firestore untuk diisi ke form
+  Future<void> _loadInitialData() async {
+    if (_currentUser == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+    try {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(_currentUser!.uid)
+              .get();
+
+      if (doc.exists) {
+        final data = doc.data() as Map<String, dynamic>;
+        fullNameController.text = data['full_name'] ?? '';
+        bioController.text = data['bio'] ?? '';
+        weightController.text = (data['weight'] ?? 0).toString();
+        heightController.text = (data['height'] ?? 0).toString();
+        studentIdController.text = data['studentId'] ?? '';
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal memuat data: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveProfile() async {
     if (_currentUser == null) return;
+
+    setState(() {
+      _isSaving = true;
+    });
 
     try {
       await FirebaseFirestore.instance
@@ -52,6 +79,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'bio': bioController.text,
             'height': int.tryParse(heightController.text) ?? 0,
             'weight': int.tryParse(weightController.text) ?? 0,
+            'studentId': studentIdController.text,
           }, SetOptions(merge: true));
 
       ScaffoldMessenger.of(
@@ -62,6 +90,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Gagal menyimpan: $e')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 
@@ -71,31 +105,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     bioController.dispose();
     weightController.dispose();
     heightController.dispose();
-
+    studentIdController.dispose();
     super.dispose();
-  }
-
-  Widget _buildTextField(TextEditingController controller, String hint) {
-    return TextField(
-      controller: controller,
-      decoration: InputDecoration(
-        hintText: hint,
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 16,
-          vertical: 14,
-        ),
-        border: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.orange),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Colors.orange),
-          borderRadius: BorderRadius.circular(10),
-        ),
-      ),
-    );
   }
 
   @override
@@ -119,58 +130,112 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
         elevation: 0,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              const CircleAvatar(
-                radius: 50,
-                backgroundColor: Colors.white,
-                child: Icon(Icons.person, size: 60, color: Colors.black),
-              ),
-              const SizedBox(height: 16),
-              _buildTextField(fullNameController, 'Full Name'),
-              const SizedBox(height: 10),
-              _buildTextField(bioController, 'Bio'),
-              const SizedBox(height: 10),
-              _buildTextField(heightController, 'Height'),
-              const SizedBox(height: 10),
-              _buildTextField(weightController, 'Weight'),
-              const SizedBox(height: 24),
-              // Cancel Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.orange,
-                    side: const BorderSide(color: Colors.orange),
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SafeArea(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
                   ),
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      const CircleAvatar(
+                        radius: 50,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.person,
+                          size: 60,
+                          color: Colors.black,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildTextField(fullNameController, 'Nama Lengkap'),
+                      const SizedBox(height: 10),
+                      _buildTextField(
+                        bioController,
+                        'Bio (contoh: Siswa SMP N 4 Padang)',
+                      ),
+                      const SizedBox(height: 10),
+                      _buildTextField(
+                        heightController,
+                        'Tinggi (cm)',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildTextField(
+                        weightController,
+                        'Berat (kg)',
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 10),
+                      _buildTextField(studentIdController, 'Nomor Induk Siswa'),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(color: Colors.orange),
+                          ),
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Batal'),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                          ),
+                          onPressed: _isSaving ? null : _saveProfile,
+                          child:
+                              _isSaving
+                                  ? const CircularProgressIndicator(
+                                    color: Colors.white,
+                                  )
+                                  : const Text(
+                                    'Simpan Perubahan',
+                                    style: TextStyle(color: Colors.black),
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                  ),
                 ),
               ),
-              const SizedBox(height: 12),
-              // Save Change Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                  ),
-                  onPressed: _saveProfile,
-                  child: const Text(
-                    'Save Change',
-                    style: TextStyle(color: Colors.black),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller,
+    String hint, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        hintText: hint,
+        filled: true,
+        fillColor: Colors.white,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.orange),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: Colors.orange),
+          borderRadius: BorderRadius.circular(10),
         ),
       ),
     );

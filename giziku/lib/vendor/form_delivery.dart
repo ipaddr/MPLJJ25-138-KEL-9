@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'delivery.dart'; // Import untuk menggunakan DeliveryData dan DeliveryStatus
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class FormDeliveryPage extends StatefulWidget {
-  const FormDeliveryPage({super.key});
+class AddDeliveryScreen extends StatefulWidget {
+  const AddDeliveryScreen({super.key});
 
   @override
-  State<FormDeliveryPage> createState() => _FormDeliveryPageState();
+  State<AddDeliveryScreen> createState() => _AddDeliveryScreenState();
 }
 
-class _FormDeliveryPageState extends State<FormDeliveryPage> {
+class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
   final TextEditingController _schoolController = TextEditingController();
   final TextEditingController _mealsController = TextEditingController();
   final TextEditingController _timeController = TextEditingController();
-
-  TimeOfDay? _selectedTime;
 
   Future<void> _pickTime() async {
     final TimeOfDay? picked = await showTimePicker(
@@ -23,38 +21,57 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
 
     if (picked != null) {
       setState(() {
-        _selectedTime = picked;
+        // Mengisi controller dengan waktu yang sudah diformat
         _timeController.text = picked.format(context);
       });
     }
   }
 
-  void _submitForm() {
+  /// Fungsi untuk mengirim data ke Firebase Firestore.
+  Future<void> _submitForm() async {
     final schoolName = _schoolController.text.trim();
     final meals = int.tryParse(_mealsController.text.trim()) ?? 0;
-    final deliveryTime = _selectedTime;
+    final deliveryTime = _timeController.text.trim();
 
-    if (schoolName.isEmpty || deliveryTime == null || meals <= 0) {
+    // Validasi input
+    if (schoolName.isEmpty || deliveryTime.isEmpty || meals <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete the form correctly')),
+        const SnackBar(
+          content: Text('Harap lengkapi semua field dengan benar'),
+        ),
       );
       return;
     }
 
-    // Format waktu jadi string seperti "08:30"
-    final formattedTime = deliveryTime.format(context);
-
-    final newDelivery = DeliveryData(
-      time: formattedTime,
-      location: schoolName,
-      meals: meals,
-      status: DeliveryStatus.completed, // default status
+    // Tampilkan loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
     );
 
-    Navigator.pop(
-      context,
-      newDelivery,
-    ); // Kembali ke DeliveryScreen sambil kirim data
+    try {
+      // Mengirim data ke koleksi 'deliveries' di Firestore
+      await FirebaseFirestore.instance.collection('deliveries').add({
+        'schoolName': schoolName,
+        'numberOfMeals': meals,
+        'deliveryTime': deliveryTime,
+        'status': 'Pending', // Status default untuk setiap pengiriman baru
+        'createdAt': FieldValue.serverTimestamp(), // Timestamp dari server
+      });
+
+      // Tutup loading indicator
+      Navigator.of(context).pop();
+      // Tutup halaman form setelah berhasil
+      Navigator.of(context).pop();
+    } catch (e) {
+      // Tutup loading indicator
+      Navigator.of(context).pop();
+      // Tampilkan pesan error jika gagal
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal menambahkan data: $e')));
+    }
   }
 
   @override
@@ -68,70 +85,125 @@ class _FormDeliveryPageState extends State<FormDeliveryPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF3E0),
+      backgroundColor: const Color(0xFFFFF6ED),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFA726),
+        backgroundColor: const Color(0xFFFF9800),
         title: const Text('Add Delivery'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
+            _buildTextField(
               controller: _schoolController,
-              decoration: InputDecoration(
-                labelText: 'Name of school',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
+              label: 'Name of school',
             ),
             const SizedBox(height: 16),
-            TextField(
+            _buildTextField(
               controller: _mealsController,
+              label: 'Number of Meals',
               keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Number of Meals',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ),
             const SizedBox(height: 16),
-            TextField(
+            _buildTimeField(
               controller: _timeController,
-              readOnly: true,
+              label: 'Delivery Time',
               onTap: _pickTime,
-              decoration: InputDecoration(
-                labelText: 'Delivery Time',
-                suffixIcon: const Icon(Icons.access_time),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ),
-            const Spacer(),
+            const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFFA726),
+                  backgroundColor: const Color(0xFFFF9800),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
                 onPressed: _submitForm,
-                child: const Text('Add', style: TextStyle(color: Colors.black)),
+                child: const Text(
+                  'Add',
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  // Helper widget untuk membuat text field
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFFF9800), width: 2),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Helper widget untuk membuat field waktu
+  Widget _buildTimeField({
+    required TextEditingController controller,
+    required String label,
+    required VoidCallback onTap,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          readOnly: true,
+          onTap: onTap,
+          decoration: InputDecoration(
+            filled: true,
+            fillColor: Colors.white,
+            suffixIcon: const Icon(Icons.access_time),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.grey),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Color(0xFFFF9800), width: 2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

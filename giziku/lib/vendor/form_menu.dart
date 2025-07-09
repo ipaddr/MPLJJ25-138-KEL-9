@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
-import 'menu_data.dart'; // import model MenuData
 
 class AddMenuScreen extends StatefulWidget {
   const AddMenuScreen({super.key});
@@ -18,6 +18,8 @@ class _AddMenuScreenState extends State<AddMenuScreen> {
   final TextEditingController caloriesController = TextEditingController();
   final TextEditingController proteinController = TextEditingController();
   final TextEditingController carbsController = TextEditingController();
+
+  bool _isLoading = false;
 
   Future<void> _selectDate() async {
     final DateTime? picked = await showDatePicker(
@@ -45,17 +47,155 @@ class _AddMenuScreenState extends State<AddMenuScreen> {
     }
   }
 
-  void _submitForm() {
+  /// Mengirim data form ke Firebase Firestore
+  Future<void> _submitForm() async {
     if (_formKey.currentState!.validate()) {
-      final newMenu = MenuData(
-        date: dateController.text,
-        food: foodController.text,
-        calories: '${caloriesController.text} kkal',
-        time: timeController.text,
-      );
+      setState(() {
+        _isLoading = true;
+      });
 
-      Navigator.pop(context, newMenu); // Return the new menu item
+      try {
+        // Mengirim data ke koleksi 'menus'
+        await FirebaseFirestore.instance.collection('menus').add({
+          'date': dateController.text,
+          'foodItems': foodController.text,
+          'calories': int.tryParse(caloriesController.text) ?? 0,
+          'protein': int.tryParse(proteinController.text) ?? 0,
+          'carbs': int.tryParse(carbsController.text) ?? 0,
+          'deliveryTime': timeController.text,
+          'createdAt': FieldValue.serverTimestamp(), // Untuk pengurutan
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Menu berhasil ditambahkan!')),
+        );
+        Navigator.pop(context); // Kembali ke halaman menu
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Gagal menambahkan menu: $e')));
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    dateController.dispose();
+    timeController.dispose();
+    foodController.dispose();
+    caloriesController.dispose();
+    proteinController.dispose();
+    carbsController.dispose();
+    super.dispose();
+  }
+
+  // ... (build method dan helper widget buildOrangeInputDecoration tetap sama)
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFFA726),
+        title: const Text('Add New Menu'),
+      ),
+      body: Container(
+        color: Colors.orange[50],
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              TextFormField(
+                controller: dateController,
+                readOnly: true,
+                onTap: _selectDate,
+                decoration: buildOrangeInputDecoration(
+                  'Delivery Date',
+                  'e.g., 21 May 2025',
+                  icon: Icons.calendar_today,
+                ),
+                validator:
+                    (value) => value!.isEmpty ? 'Select delivery date' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: foodController,
+                decoration: buildOrangeInputDecoration(
+                  'Food Items',
+                  'e.g., Nasi, Ayam Goreng, Sayur Bayam',
+                ),
+                validator:
+                    (value) => value!.isEmpty ? 'Enter food items' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: caloriesController,
+                keyboardType: TextInputType.number,
+                decoration: buildOrangeInputDecoration(
+                  'Calories (kkal)',
+                  'e.g., 500',
+                ),
+                validator: (value) => value!.isEmpty ? 'Enter calories' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: proteinController,
+                keyboardType: TextInputType.number,
+                decoration: buildOrangeInputDecoration(
+                  'Protein (grams)',
+                  'e.g., 30',
+                ),
+                validator: (value) => value!.isEmpty ? 'Enter protein' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: carbsController,
+                keyboardType: TextInputType.number,
+                decoration: buildOrangeInputDecoration(
+                  'Carbohydrates (grams)',
+                  'e.g., 60',
+                ),
+                validator: (value) => value!.isEmpty ? 'Enter carbs' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: timeController,
+                readOnly: true,
+                onTap: _selectTime,
+                decoration: buildOrangeInputDecoration(
+                  'Estimated Delivery Time',
+                  'Select time',
+                  icon: Icons.access_time,
+                ),
+                validator:
+                    (value) => value!.isEmpty ? 'Select delivery time' : null,
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitForm,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFFA726),
+                  ),
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                            'Add',
+                            style: TextStyle(fontSize: 16, color: Colors.black),
+                          ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   InputDecoration buildOrangeInputDecoration(
@@ -78,124 +218,6 @@ class _AddMenuScreenState extends State<AddMenuScreen> {
         borderRadius: BorderRadius.circular(12),
       ),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color(0xFFFFA726),
-        title: const Text('Add New Menu'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Container(
-        color: Colors.orange[50],
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              // Delivery Date
-              TextFormField(
-                controller: dateController,
-                readOnly: true,
-                onTap: _selectDate,
-                decoration: buildOrangeInputDecoration(
-                  'Delivery Date',
-                  'e.g., 21 May 2025',
-                  icon: Icons.calendar_today,
-                ),
-                validator:
-                    (value) => value!.isEmpty ? 'Select delivery date' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Food Items
-              TextFormField(
-                controller: foodController,
-                decoration: buildOrangeInputDecoration(
-                  'Food Items',
-                  'e.g., Nasi, Ayam Goreng, Sayur Bayam',
-                ),
-                validator:
-                    (value) => value!.isEmpty ? 'Enter food items' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Calories
-              TextFormField(
-                controller: caloriesController,
-                keyboardType: TextInputType.number,
-                decoration: buildOrangeInputDecoration(
-                  'Calories (kkal)',
-                  'e.g., 500',
-                ),
-                validator: (value) => value!.isEmpty ? 'Enter calories' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Protein
-              TextFormField(
-                controller: proteinController,
-                keyboardType: TextInputType.number,
-                decoration: buildOrangeInputDecoration(
-                  'Protein (grams)',
-                  'e.g., 30',
-                ),
-                validator: (value) => value!.isEmpty ? 'Enter protein' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Carbohydrates
-              TextFormField(
-                controller: carbsController,
-                keyboardType: TextInputType.number,
-                decoration: buildOrangeInputDecoration(
-                  'Carbohydrates (grams)',
-                  'e.g., 60',
-                ),
-                validator: (value) => value!.isEmpty ? 'Enter carbs' : null,
-              ),
-              const SizedBox(height: 12),
-
-              // Delivery Time
-              TextFormField(
-                controller: timeController,
-                readOnly: true,
-                onTap: _selectTime,
-                decoration: buildOrangeInputDecoration(
-                  'Estimated Delivery Time',
-                  'Select time',
-                  icon: Icons.access_time,
-                ),
-                validator:
-                    (value) => value!.isEmpty ? 'Select delivery time' : null,
-              ),
-              const SizedBox(height: 24),
-
-              // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ElevatedButton(
-                  onPressed: _submitForm,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Color(0xFFFFA726),
-                  ),
-                  child: const Text(
-                    'Add',
-                    style: TextStyle(fontSize: 16, color: Colors.black),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

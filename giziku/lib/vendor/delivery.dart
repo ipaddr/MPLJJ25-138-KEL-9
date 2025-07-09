@@ -1,166 +1,196 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'form_delivery.dart';
 
-class DeliveryScreen extends StatefulWidget {
+/// Enum untuk merepresentasikan status pengiriman di UI.
+enum DeliveryStatus { inProgress, completed }
+
+/// Halaman utama yang menampilkan daftar pengiriman.
+class DeliveryScreen extends StatelessWidget {
   const DeliveryScreen({super.key});
 
-  @override
-  State<DeliveryScreen> createState() => _DeliveryScreenState();
-}
-
-class _DeliveryScreenState extends State<DeliveryScreen> {
-  final List<DeliveryData> _deliveries = [
-    DeliveryData(
-      time: '08:00',
-      location: 'SD N 12 Padang',
-      meals: 100,
-      status: DeliveryStatus.inProgress,
-    ),
-    DeliveryData(time: '09:45', location: 'SMK N 2 Padang', meals: 120),
-    DeliveryData(time: '11:30', location: 'MTs N 1 Padang', meals: 100),
-  ];
-
-  void _navigateAndAddDelivery() async {
-    final newDelivery = await Navigator.push<DeliveryData>(
+  /// Fungsi untuk navigasi ke halaman tambah pengiriman.
+  void _navigateToAddDelivery(BuildContext context) {
+    Navigator.push(
       context,
-      MaterialPageRoute(builder: (context) => const FormDeliveryPage()),
+      MaterialPageRoute(builder: (context) => const AddDeliveryScreen()),
     );
-
-    if (newDelivery != null) {
-      setState(() {
-        _deliveries.add(newDelivery);
-      });
-    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // Title Section (bukan AppBar)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: const Color(0xFFFFA726),
+    return Scaffold(
+      backgroundColor: const Color(0xFFFFF6ED),
+      appBar: AppBar(
+        title: const Text('Deliveries'),
+        backgroundColor: const Color(0xFFFF9800),
+        automaticallyImplyLeading: false, // Menghilangkan tombol kembali
+        elevation: 0,
+      ),
+      body: StreamBuilder<QuerySnapshot>(
+        // Mendengarkan perubahan pada koleksi 'deliveries' di Firestore,
+        // diurutkan berdasarkan yang terbaru.
+        stream:
+            FirebaseFirestore.instance
+                .collection('deliveries')
+                .orderBy('createdAt', descending: true)
+                .snapshots(),
+        builder: (context, snapshot) {
+          // Menampilkan indikator loading saat data sedang diambil.
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Menampilkan pesan jika terjadi error saat mengambil data.
+          if (snapshot.hasError) {
+            return const Center(child: Text('Terjadi kesalahan.'));
+          }
+
+          // Menampilkan pesan jika tidak ada data pengiriman.
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'Belum ada pengiriman.',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+            );
+          }
+
+          // Jika data berhasil diambil, tampilkan dalam bentuk daftar.
+          final deliveries = snapshot.data!.docs;
+
+          return ListView.builder(
+            itemCount: deliveries.length,
+            itemBuilder: (context, index) {
+              final deliveryDoc = deliveries[index];
+              final String documentId = deliveryDoc.id;
+
+              // Mapping data dari Firestore ke variabel lokal.
+              final String schoolName = deliveryDoc['schoolName'];
+              final String deliveryTime = deliveryDoc['deliveryTime'];
+              final int meals = deliveryDoc['numberOfMeals'];
+              final String statusString = deliveryDoc['status'];
+
+              // Konversi status dari String menjadi Enum.
+              final DeliveryStatus status =
+                  statusString == 'Pending'
+                      ? DeliveryStatus.inProgress
+                      : DeliveryStatus.completed;
+
+              // Mengembalikan widget card untuk setiap item pengiriman.
+              return DeliveryCard(
+                documentId: documentId,
+                time: deliveryTime,
+                location: schoolName,
+                meals: meals,
+                status: status,
+              );
+            },
+          );
+        },
+      ),
+      // Tombol di bagian bawah untuk menambah pengiriman baru.
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        color: const Color(0xFFFFF6ED),
+        child: ElevatedButton(
+          onPressed: () => _navigateToAddDelivery(context),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFFF9800),
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
           child: const Text(
-            'Pengiriman',
+            'Add Delivery',
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Colors.black,
             ),
-            textAlign: TextAlign.center,
           ),
         ),
-
-        // Delivery List
-        Expanded(
-          child: ListView.builder(
-            itemCount: _deliveries.length,
-            itemBuilder: (context, index) {
-              final delivery = _deliveries[index];
-              return DeliveryCard(
-                time: delivery.time,
-                location: delivery.location,
-                meals: delivery.meals,
-                status: delivery.status,
-              );
-            },
-          ),
-        ),
-
-        // Add Delivery Button
-        Container(
-          padding: const EdgeInsets.all(16),
-          color: const Color(0xFFFFF3E0),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _navigateAndAddDelivery,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFFFA726),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: const Text(
-                'Tambah Pengiriman',
-                style: TextStyle(fontSize: 16, color: Colors.black),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-enum DeliveryStatus { inProgress, completed }
-
-class DeliveryData {
+/// Widget untuk menampilkan satu item pengiriman dalam daftar.
+class DeliveryCard extends StatelessWidget {
+  final String documentId;
   final String time;
   final String location;
   final int meals;
   final DeliveryStatus status;
 
-  DeliveryData({
+  const DeliveryCard({
+    super.key,
+    required this.documentId,
     required this.time,
     required this.location,
     required this.meals,
-    this.status = DeliveryStatus.completed,
+    required this.status,
   });
-}
 
-class DeliveryCard extends StatelessWidget {
-  final String time;
-  final String location;
-  final int? meals;
-  final DeliveryStatus? status;
-
-  const DeliveryCard({
-    super.key,
-    required this.time,
-    required this.location,
-    this.meals,
-    this.status,
-  });
+  /// Fungsi untuk mengubah status pengiriman di Firestore menjadi 'Completed'.
+  Future<void> _markAsCompleted() async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(documentId)
+          .update({'status': 'Completed'});
+    } catch (e) {
+      // Anda bisa menambahkan notifikasi error jika diperlukan.
+      print("Gagal mengubah status: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      color: Colors.white,
-      elevation: 0.5,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      shape: const Border(
-        bottom: BorderSide(color: Color(0xFFFFA726), width: 1),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+    return InkWell(
+      // Aksi saat item di-tap.
+      onTap: () {
+        // Fungsi hanya akan dijalankan jika status masih 'inProgress'.
+        if (status == DeliveryStatus.inProgress) {
+          _markAsCompleted();
+        }
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.orangeAccent, width: 0.5),
+          ),
+        ),
         child: Row(
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    time,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  location,
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    location,
+                    style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
+            // Tampilan kondisional berdasarkan status pengiriman.
             if (status == DeliveryStatus.inProgress)
+              // Menampilkan titik hijau jika status 'inProgress'.
               const Icon(Icons.circle, color: Colors.green, size: 12)
-            else if (meals != null)
-              Text('$meals Makanan', style: const TextStyle(fontSize: 14)),
+            else
+              // Menampilkan jumlah makanan jika status 'completed'.
+              Text('$meals meals', style: const TextStyle(fontSize: 14)),
           ],
         ),
       ),

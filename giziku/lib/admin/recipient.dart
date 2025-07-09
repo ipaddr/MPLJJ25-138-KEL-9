@@ -15,9 +15,21 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
   final TextEditingController _dobController = TextEditingController();
   final TextEditingController _gradeController = TextEditingController();
   final TextEditingController _classController = TextEditingController();
+  // Controller baru untuk Nomor Induk Siswa
+  final TextEditingController _studentIdController = TextEditingController();
 
   String? _selectedGender;
   final List<String> genderOptions = ['Laki-laki', 'Perempuan'];
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _dobController.dispose();
+    _gradeController.dispose();
+    _classController.dispose();
+    _studentIdController.dispose(); // Jangan lupa di-dispose
+    super.dispose();
+  }
 
   Future<void> _saveRecipientData() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -28,11 +40,14 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
       return;
     }
 
+    // Validasi semua field, termasuk Nomor Induk Siswa
     if (_nameController.text.isEmpty ||
         _dobController.text.isEmpty ||
         _selectedGender == null ||
         _gradeController.text.isEmpty ||
-        _classController.text.isEmpty) {
+        _classController.text.isEmpty ||
+        _studentIdController.text.isEmpty) {
+      // Tambahkan validasi
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Harap lengkapi semua data")),
       );
@@ -40,6 +55,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     }
 
     try {
+      // Menyimpan data ke koleksi 'recipients'
       await FirebaseFirestore.instance.collection('recipients').add({
         'userId': user.uid,
         'nama': _nameController.text,
@@ -47,19 +63,22 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         'jenisKelamin': _selectedGender,
         'grade': _gradeController.text,
         'kelas': _classController.text,
+        'studentId': _studentIdController.text, // Tambahkan field baru
         'timestamp': FieldValue.serverTimestamp(),
-        'statusDistribusi': 'belum_terdistribusi', // <<< TAMBAHKAN INI
-        'tanggalDistribusi': null, // <<< TAMBAHKAN INI, awalnya null
+        'statusDistribusi': 'belum_terdistribusi',
+        'tanggalDistribusi': null,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Data penerima berhasil disimpan")),
       );
 
+      // Membersihkan semua controller
       _nameController.clear();
       _dobController.clear();
       _gradeController.clear();
       _classController.clear();
+      _studentIdController.clear();
       setState(() => _selectedGender = null);
 
       Navigator.pop(context);
@@ -96,6 +115,12 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
             buildTextField(
               controller: _nameController,
               hintText: "Nama Lengkap",
+            ),
+            buildLabel("Nomor Induk Siswa"), // Label baru
+            buildTextField(
+              controller: _studentIdController,
+              hintText: "Contoh: 12345678",
+              keyboardType: TextInputType.number, // Keyboard numerik
             ),
             buildLabel("Tanggal Lahir"),
             TextField(
@@ -181,9 +206,11 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
   Widget buildTextField({
     required TextEditingController controller,
     required String hintText,
+    TextInputType keyboardType = TextInputType.text,
   }) {
     return TextField(
       controller: controller,
+      keyboardType: keyboardType,
       decoration: InputDecoration(
         hintText: hintText,
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
