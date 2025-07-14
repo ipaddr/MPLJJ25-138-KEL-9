@@ -37,16 +37,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     }
     final studentId = userDoc.data()!['studentId'];
 
-    // 2. **PERBAIKAN:** Menambahkan orderBy agar cocok dengan indeks yang ada.
+    // 2. Gunakan collectionGroup untuk mencari riwayat siswa di semua pengiriman.
     final historyQuery =
         await FirebaseFirestore.instance
             .collectionGroup('recipients')
             .where('studentId', isEqualTo: studentId)
-            .orderBy('timestamp', descending: true) // <-- Tambahkan ini
             .get();
 
     // 3. Ambil data tanggal dari dokumen pengiriman induk untuk setiap riwayat.
-    // Karena sudah diurutkan dari database, kita tidak perlu sorting lagi di sini.
     List<Map<String, dynamic>> historyList = [];
     for (var doc in historyQuery.docs) {
       final deliveryDocRef = doc.reference.parent.parent;
@@ -61,6 +59,13 @@ class _HistoryScreenState extends State<HistoryScreen> {
         }
       }
     }
+
+    // Urutkan berdasarkan tanggal
+    historyList.sort((a, b) {
+      Timestamp timeA = a['deliveryData']['deliveryDate'] ?? Timestamp.now();
+      Timestamp timeB = b['deliveryData']['deliveryDate'] ?? Timestamp.now();
+      return timeB.compareTo(timeA); // Terbaru di atas
+    });
 
     return historyList;
   }
@@ -86,16 +91,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (snapshot.hasError) {
-            // Tampilkan pesan error yang lebih informatif
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'Error: ${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
+            return Center(child: Text('Error: ${snapshot.error}'));
           }
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text('Belum ada riwayat.'));
@@ -113,6 +109,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
               final Timestamp timestamp =
                   deliveryData?['deliveryDate'] ?? Timestamp.now();
+              // **PERBAIKAN:** Menggunakan format tanggal yang benar.
               final String date = DateFormat(
                 'EEEE, d MMMM yyyy',
               ).format(timestamp.toDate());
