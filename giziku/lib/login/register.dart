@@ -9,282 +9,178 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
-  final TextEditingController _usernameController = TextEditingController();
-  final TextEditingController _sekolahController = TextEditingController();
-  final TextEditingController _vendorController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _nameController = TextEditingController();
+  final _schoolController = TextEditingController(); // Untuk Admin & Vendor
 
   String? _selectedRole;
+  final List<String> _roles = ['User Biasa', 'Admin Sekolah', 'Vendor Makanan'];
+  bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
-  final List<String> roles = ['User Biasa', 'Admin Sekolah', 'Vendor Makanan'];
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _nameController.dispose();
+    _schoolController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _register() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Password tidak cocok.")));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      Map<String, dynamic> extraData = {'username': _nameController.text};
+
+      if (_selectedRole == 'Admin Sekolah') {
+        extraData['sekolah'] = _schoolController.text;
+      } else if (_selectedRole == 'Vendor Makanan') {
+        extraData['vendorName'] = _schoolController.text;
+      }
+
+      await _authService.registerUser(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+        role: _selectedRole!,
+        extraData: extraData,
+      );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Registrasi berhasil! Silakan login.")),
+        );
+        Navigator.pop(context); // Kembali ke halaman login
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal mendaftar: ${e.toString()}")),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6EC),
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header penuh lebar
-            Container(
-              height: 50,
-              decoration: const BoxDecoration(color: Colors.orange),
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: const Text(
-                'GiziKu',
-                style: TextStyle(
-                  color: Colors.black87,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
+      appBar: AppBar(title: const Text('Daftar Akun Baru')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24.0),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Buat Akun Anda',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
-            ),
-
-            Expanded(
-              child: SingleChildScrollView(
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 400),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const SizedBox(height: 40),
-                          const CircleAvatar(
-                            radius: 40,
-                            backgroundColor: Colors.grey,
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Buat Akun',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const Text(
-                            'Daftar untuk memulai',
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 20),
-
-                          TextField(
-                            controller: _emailController,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.email_outlined),
-                              hintText: 'Masukkan email',
-                              labelText: 'Email',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextField(
-                            controller: _passwordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              hintText: 'Masukkan password',
-                              labelText: 'Password',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          TextField(
-                            controller: _confirmPasswordController,
-                            obscureText: true,
-                            decoration: InputDecoration(
-                              prefixIcon: const Icon(Icons.lock_outline),
-                              hintText: 'Konfirmasi password',
-                              labelText: 'Konfirmasi Password',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-
-                          DropdownButtonFormField<String>(
-                            value: _selectedRole,
-                            items:
-                                roles
-                                    .map(
-                                      (role) => DropdownMenuItem(
-                                        value: role,
-                                        child: Text(role),
-                                      ),
-                                    )
-                                    .toList(),
-                            onChanged: (value) {
-                              setState(() {
-                                _selectedRole = value!;
-                              });
-                            },
-                            decoration: InputDecoration(
-                              labelText: 'Pilih role',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                          ),
-                          if (_selectedRole == 'Admin Sekolah') ...[
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _sekolahController,
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.school),
-                                hintText: 'Nama Sekolah',
-                                labelText: 'Sekolah',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ] else if (_selectedRole == 'User Biasa') ...[
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _usernameController,
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.people),
-                                hintText: 'Username',
-                                labelText: 'Username',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ] else if (_selectedRole == 'Vendor Makanan') ...[
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _vendorController,
-                              decoration: InputDecoration(
-                                prefixIcon: const Icon(Icons.restaurant),
-                                hintText: 'Vendor',
-                                labelText: 'Nama Vendor',
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 10),
-
-                          const SizedBox(height: 20),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () async {
-                                if (_passwordController.text !=
-                                    _confirmPasswordController.text) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Password tidak cocok"),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                if (_selectedRole == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("Silakan pilih role"),
-                                    ),
-                                  );
-                                  return;
-                                }
-
-                                // Siapkan data tambahan berdasarkan role
-                                Map<String, dynamic> extraData = {};
-                                if (_selectedRole == 'User Biasa') {
-                                  extraData['username'] =
-                                      _usernameController.text.trim();
-                                } else if (_selectedRole == 'Admin Sekolah') {
-                                  extraData['sekolah'] =
-                                      _sekolahController.text.trim();
-                                } else if (_selectedRole == 'Vendor Makanan') {
-                                  extraData['vendor'] =
-                                      _vendorController.text.trim();
-                                }
-
-                                try {
-                                  final user = await AuthService().registerUser(
-                                    _emailController.text,
-                                    _passwordController.text,
-                                    _selectedRole!,
-                                    extraData,
-                                  );
-
-                                  if (user != null) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text("Registrasi berhasil!"),
-                                      ),
-                                    );
-                                    Navigator.pop(context);
-                                  }
-                                } catch (e) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(
-                                        "Registrasi gagal: ${e.toString()}",
-                                      ),
-                                    ),
-                                  );
-                                }
-                              },
-
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.orange,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                              child: const Text('Daftar'),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text('Sudah punya akun?? '),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.pop(context);
-                                },
-                                child: const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    color: Colors.orange,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+              const SizedBox(height: 24),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Nama Lengkap/Username',
+                  border: OutlineInputBorder(),
+                ),
+                validator: (v) => v!.isEmpty ? 'Nama tidak boleh kosong' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                ),
+                validator:
+                    (v) => v!.isEmpty ? 'Email tidak boleh kosong' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+                validator:
+                    (v) => v!.length < 6 ? 'Password minimal 6 karakter' : null,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _confirmPasswordController,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Konfirmasi Password',
+                  border: OutlineInputBorder(),
+                ),
+                validator:
+                    (v) =>
+                        v != _passwordController.text
+                            ? 'Password tidak cocok'
+                            : null,
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedRole,
+                hint: const Text('Pilih Peran Anda'),
+                items:
+                    _roles
+                        .map(
+                          (role) =>
+                              DropdownMenuItem(value: role, child: Text(role)),
+                        )
+                        .toList(),
+                onChanged: (value) => setState(() => _selectedRole = value),
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                validator: (v) => v == null ? 'Silakan pilih peran' : null,
+              ),
+              if (_selectedRole == 'Admin Sekolah' ||
+                  _selectedRole == 'Vendor Makanan')
+                Padding(
+                  padding: const EdgeInsets.only(top: 16.0),
+                  child: TextFormField(
+                    controller: _schoolController,
+                    decoration: InputDecoration(
+                      labelText:
+                          _selectedRole == 'Admin Sekolah'
+                              ? 'Nama Sekolah'
+                              : 'Nama Vendor',
+                      border: const OutlineInputBorder(),
                     ),
+                    validator:
+                        (v) =>
+                            v!.isEmpty ? 'Field ini tidak boleh kosong' : null,
                   ),
                 ),
+              const SizedBox(height: 32),
+              SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _register,
+                  child:
+                      _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text('Daftar'),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

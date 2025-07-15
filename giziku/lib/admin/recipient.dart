@@ -38,7 +38,6 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     super.dispose();
   }
 
-  /// **LOGIKA BARU:** Mengambil nama sekolah dari profil admin
   Future<void> _fetchSchoolName() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -70,10 +69,13 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     setState(() => _isSaving = true);
 
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) {
+      setState(() => _isSaving = false);
+      return;
+    }
+    ;
 
     try {
-      // **PERBAIKAN:** Menyimpan 'schoolName' bersama data siswa
       await FirebaseFirestore.instance.collection('recipients').add({
         'userId': user.uid,
         'nama': _nameController.text,
@@ -82,7 +84,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
         'grade': _gradeController.text,
         'kelas': _classController.text,
         'studentId': _studentIdController.text,
-        'schoolName': _schoolName, // <-- Field penting ditambahkan di sini
+        'schoolName': _schoolName,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
@@ -111,11 +113,15 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
       backgroundColor: const Color(0xFFFEF7EF),
       appBar: AppBar(
         backgroundColor: orangeColor,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
         title: const Text(
           'Tambah Data Penerima',
           style: TextStyle(color: Colors.white),
         ),
-        centerTitle: true,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -123,7 +129,6 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
           key: _formKey,
           child: Column(
             children: [
-              // ... (UI form Anda tetap sama)
               buildLabel("Nama"),
               buildTextField(
                 controller: _nameController,
@@ -135,8 +140,51 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
                 hintText: "Contoh: 12345678",
                 keyboardType: TextInputType.number,
               ),
-              // ... sisa form
+              buildLabel("Tanggal Lahir"),
+              TextFormField(
+                controller: _dobController,
+                readOnly: true,
+                decoration: buildInputDecoration(
+                  hintText: "dd/mm/yyyy",
+                  suffixIcon: Icons.calendar_today,
+                ),
+                onTap: () async {
+                  final picked = await showDatePicker(
+                    context: context,
+                    initialDate: DateTime(2015),
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime.now(),
+                  );
+                  if (picked != null) {
+                    _dobController.text =
+                        "${picked.day.toString().padLeft(2, '0')}/${picked.month.toString().padLeft(2, '0')}/${picked.year}";
+                  }
+                },
+                validator:
+                    (value) =>
+                        value!.isEmpty
+                            ? 'Tanggal lahir tidak boleh kosong'
+                            : null,
+              ),
+              buildLabel("Jenis Kelamin"),
+              DropdownButtonFormField<String>(
+                value: _selectedGender,
+                hint: const Text("Pilih Jenis Kelamin"),
+                items:
+                    genderOptions
+                        .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                        .toList(),
+                onChanged: (val) => setState(() => _selectedGender = val),
+                decoration: buildInputDecoration(),
+                validator:
+                    (value) => value == null ? 'Pilih jenis kelamin' : null,
+              ),
+              buildLabel("Tingkat"),
+              buildTextField(controller: _gradeController, hintText: "Ex: 5"),
+              buildLabel("Kelas"),
+              buildTextField(controller: _classController, hintText: "Ex: A"),
               const SizedBox(height: 24),
+              // **PERBAIKAN:** Menambahkan kembali tombol Simpan
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
@@ -144,6 +192,9 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: orangeColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                   child:
                       _isSaving
@@ -154,6 +205,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
                           ),
                 ),
               ),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -161,7 +213,6 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     );
   }
 
-  // ... (Helper widget buildLabel dan buildTextField tetap sama)
   Widget buildLabel(String text) {
     return Container(
       alignment: Alignment.centerLeft,
@@ -173,7 +224,7 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     );
   }
 
-  Widget buildTextField({
+  TextFormField buildTextField({
     required TextEditingController controller,
     required String hintText,
     TextInputType keyboardType = TextInputType.text,
@@ -181,12 +232,20 @@ class _RecipientDataScreenState extends State<RecipientDataScreen> {
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
-      decoration: InputDecoration(
-        hintText: hintText,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-      ),
+      decoration: buildInputDecoration(hintText: hintText),
       validator:
           (value) => value!.isEmpty ? 'Field ini tidak boleh kosong' : null,
+    );
+  }
+
+  InputDecoration buildInputDecoration({
+    String? hintText,
+    IconData? suffixIcon,
+  }) {
+    return InputDecoration(
+      hintText: hintText,
+      suffixIcon: suffixIcon != null ? Icon(suffixIcon) : null,
+      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
     );
   }
 }

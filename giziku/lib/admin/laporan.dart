@@ -67,42 +67,32 @@ class _DistributionReportScreenState extends State<DistributionReportScreen> {
     }
   }
 
-  /// **LOGIKA YANG DIPERBAIKI:**
-  /// Fungsi ini sekarang membuat entri pengiriman untuk memulai proses ceklis.
-  Future<void> _createDeliveryAndNavigate() async {
-    // Hanya validasi tanggal karena hanya itu yang dibutuhkan untuk membuat jadwal
-    if (_selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Silakan pilih tanggal terlebih dahulu.')),
-      );
-      return;
-    }
-
+  Future<void> _submitReport() async {
+    if (!_formKey.currentState!.validate()) return;
     setState(() => _isSubmitting = true);
 
     try {
-      // 1. Membuat dokumen pengiriman baru dengan data minimal
+      // 1. Membuat dokumen baru di koleksi 'deliveries'
+      // Dokumen ini akan menjadi dasar untuk riwayat dan ceklis admin
       final newDeliveryRef = await FirebaseFirestore.instance
           .collection('deliveries')
           .add({
             'schoolName': _schoolName,
             'deliveryDate': _selectedDate,
+            'totalStudents': int.tryParse(_studentsController.text) ?? 0,
+            'totalMeals': int.tryParse(_foodTotalController.text) ?? 0,
+            'surplusMeals': int.tryParse(_extraFoodController.text) ?? 0,
+            'reportIssueType': _selectedIssue,
+            'reportDescription': _descriptionController.text,
             'createdAt': FieldValue.serverTimestamp(),
-            // Anda bisa menambahkan data laporan lainnya di sini jika perlu
-            'reportData': {
-              'totalStudents': int.tryParse(_studentsController.text) ?? 0,
-              'totalMeals': int.tryParse(_foodTotalController.text) ?? 0,
-              'surplusMeals': int.tryParse(_extraFoodController.text) ?? 0,
-              'issueType': _selectedIssue,
-              'description': _descriptionController.text,
-            },
           });
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Jadwal pengiriman berhasil dibuat!')),
+          const SnackBar(content: Text('Laporan berhasil dikirim!')),
         );
-        // 2. Navigasi ke halaman ceklis dengan ID pengiriman yang baru
+        // 2. Setelah berhasil, navigasi ke halaman ceklis siswa
+        // dengan mengirimkan ID dari dokumen pengiriman yang baru dibuat.
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -116,7 +106,7 @@ class _DistributionReportScreenState extends State<DistributionReportScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('Gagal membuat jadwal: $e')));
+        ).showSnackBar(SnackBar(content: Text('Gagal mengirim laporan: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -216,7 +206,7 @@ class _DistributionReportScreenState extends State<DistributionReportScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: _isSubmitting ? null : _createDeliveryAndNavigate,
+                  onPressed: _isSubmitting ? null : _submitReport,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
                     shape: RoundedRectangleBorder(
@@ -269,6 +259,7 @@ class _DistributionReportScreenState extends State<DistributionReportScreen> {
     );
   }
 
+  // **PERBAIKAN:** Mengubah parameter menjadi named parameter
   Widget _buildTextField({
     required TextEditingController controller,
     required String label,
@@ -280,6 +271,12 @@ class _DistributionReportScreenState extends State<DistributionReportScreen> {
       keyboardType: keyboardType,
       maxLines: maxLines ?? 1,
       decoration: _buildInputDecoration(label: label),
+      validator: (value) {
+        if (label != 'Description' && (value == null || value.isEmpty)) {
+          return '$label tidak boleh kosong';
+        }
+        return null;
+      },
     );
   }
 

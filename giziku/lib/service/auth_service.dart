@@ -5,54 +5,44 @@ class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Register User
-  Future<User?> registerUser(
-    String email,
-    String password,
-    String role,
-    Map<String, dynamic> extraData,
-  ) async {
+  // Fungsi registrasi yang sudah diperbaiki
+  Future<User?> registerUser({
+    required String email,
+    required String password,
+    required String role,
+    required Map<String, dynamic> extraData,
+  }) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
-
       User? user = result.user;
-
       if (user != null) {
+        // Menyimpan data pengguna ke Firestore
         await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
           'email': email,
-          'role': role,
-          ...extraData, // tambahkan data tambahan seperti nama, vendor, sekolah
+          'role': role, // Menyimpan peran yang dipilih
+          'createdAt': FieldValue.serverTimestamp(),
+          ...extraData,
         });
       }
-
       return user;
     } catch (e) {
       rethrow;
     }
   }
 
-  // Login dan ambil role
-  Future<String?> loginUser(String email, String password) async {
+  // Fungsi login yang sudah diperbaiki
+  // Sekarang mengembalikan UserCredential untuk mendapatkan UID
+  Future<UserCredential> loginUser(String email, String password) async {
     try {
-      UserCredential result = await _auth.signInWithEmailAndPassword(
+      UserCredential userCredential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      User? user = result.user;
-      if (user != null) {
-        DocumentSnapshot snapshot =
-            await _firestore.collection('users').doc(user.uid).get();
-        if (snapshot.exists) {
-          return snapshot['role'] as String;
-        } else {
-          throw Exception("User data not found");
-        }
-      }
-      return null;
+      return userCredential;
     } catch (e) {
       rethrow;
     }
