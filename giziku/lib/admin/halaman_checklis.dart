@@ -1,291 +1,471 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
-import 'daftar_recipient.dart'; // Sesuaikan path ke halaman daftar master siswa
 
-class DeliveryChecklistScreen extends StatefulWidget {
-  final String deliveryId;
+class CeklisAdminScreen extends StatefulWidget {
+  final String? deliveryId;
 
-  const DeliveryChecklistScreen({super.key, required this.deliveryId});
+  const CeklisAdminScreen({super.key, this.deliveryId});
 
   @override
-  State<DeliveryChecklistScreen> createState() =>
-      _DeliveryChecklistScreenState();
+  State<CeklisAdminScreen> createState() => _CeklisAdminScreenState();
 }
 
-class _DeliveryChecklistScreenState extends State<DeliveryChecklistScreen> {
-  bool _isAdding = false;
-  bool _isSubmitting = false; // State baru untuk proses submit
-  String? _schoolName;
-  String? _deliveryDate;
+class _CeklisAdminScreenState extends State<CeklisAdminScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<Map<String, dynamic>> _allRecipients = [];
+  List<Map<String, dynamic>> _filteredRecipients = [];
+  bool _isLoading = true;
+  String _selectedDate = DateFormat('yyyy-MM-dd').format(DateTime.now());
+  String? _currentDeliveryId;
 
   @override
   void initState() {
     super.initState();
-    _fetchDeliveryInfo();
+    _currentDeliveryId = widget.deliveryId;
+    _fetchRecipients();
   }
 
-  /// Mengambil info pengiriman, seperti nama sekolah dan tanggal.
-  Future<void> _fetchDeliveryInfo() async {
+  /// Mengambil data penerima dari Firestore
+  Future<void> _fetchRecipients() async {
+    setState(() {
+      _isLoading = true;
+    });
+
     try {
-      final deliveryDoc =
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception("Anda harus login sebagai admin.");
+      }
+
+      final recipientsSnapshot =
           await FirebaseFirestore.instance
-              .collection('deliveries')
-              .doc(widget.deliveryId)
-              .get();
-      if (deliveryDoc.exists) {
-        final data = deliveryDoc.data();
-        if (mounted) {
-          setState(() {
-            _schoolName = data?['schoolName'];
-            if (data?['deliveryDate'] != null) {
-              final timestamp = data!['deliveryDate'] as Timestamp;
-              _deliveryDate = DateFormat(
-                'd MMMM yyyy',
-              ).format(timestamp.toDate());
-            }
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint("Error fetching delivery info: $e");
-    }
-  }
-
-  /// Mengisi daftar hadir untuk pengiriman ini dari data master siswa.
-  Future<void> _populateStudentList() async {
-    if (_schoolName == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Data sekolah belum dimuat.")),
-      );
-      return;
-    }
-    setState(() => _isAdding = true);
-
-    try {
-      final firestore = FirebaseFirestore.instance;
-      final WriteBatch batch = firestore.batch();
-
-      final masterRecipients =
-          await firestore
               .collection('recipients')
-              .where('schoolName', isEqualTo: _schoolName)
+              .where('userId', isEqualTo: user.uid)
               .get();
 
-      if (masterRecipients.docs.isEmpty) {
-        throw Exception(
-          "Tidak ada data siswa master yang ditemukan untuk sekolah ini.",
-        );
-      }
-
-      final deliveryRecipientsRef = firestore
-          .collection('deliveries')
-          .doc(widget.deliveryId)
-          .collection('recipients');
-
-      for (var studentDoc in masterRecipients.docs) {
-        final studentData = studentDoc.data();
-        final studentId = studentDoc.id;
-
-        batch.set(deliveryRecipientsRef.doc(studentId), {
-          'studentName': studentData['nama'],
-          'class': "${studentData['grade']}${studentData['kelas']}",
-          'status': 'Absent', // Status default
-          'studentId': studentData['studentId'],
+      List<Map<String, dynamic>> recipients = [];
+      for (var doc in recipientsSnapshot.docs) {
+        final data = doc.data();
+        recipients.add({
+          'id': doc.id,
+          'studentId': data['studentId'] ?? '',
+          'name': data['name'] ?? '',
+          'class': data['class'] ?? '',
+          'phone': data['phone'] ?? '',
         });
       }
 
-      await batch.commit();
+      setState(() {
+        _allRecipients = recipients;
+        _filteredRecipients = recipients;
+        _isLoading = false;
+      });
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal mengisi daftar: ${e.toString()}")),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isAdding = false);
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
   }
 
-  /// **FUNGSI BARU:** Menghitung dan menyimpan statistik ke dokumen pengiriman
-  Future<void> _submitChecklist() async {
-    setState(() => _isSubmitting = true);
+  /// Filter siswa berdasarkan pencarian
+  void _filterRecipients(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        _filteredRecipients = _allRecipients;
+      } else {
+        _filteredRecipients =
+            _allRecipients.where((recipient) {
+              final studentId = recipient['studentId'].toString().toLowerCase();
+              final name = recipient['name'].toString().toLowerCase();
+              final searchLower = query.toLowerCase();
+              return studentId.contains(searchLower) ||
+                  name.contains(searchLower);
+            }).toList();
+      }
+    });
+  }
 
+  /// Cek apakah siswa sudah menerima makanan untuk delivery tertentu
+  Future<bool> _checkIfAlreadyReceived(String studentId) async {
     try {
-      final recipientsRef = FirebaseFirestore.instance
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return false;
+
+      // Gunakan deliveryId yang sudah ada atau buat berdasarkan tanggal
+      final deliveryId =
+          _currentDeliveryId ??
+          '${user.uid}_${DateFormat('yyyy-MM-dd').format(DateTime.parse('$_selectedDate 00:00:00'))}';
+
+      final deliveryRef = FirebaseFirestore.instance
           .collection('deliveries')
-          .doc(widget.deliveryId)
-          .collection('recipients');
+          .doc(deliveryId);
 
-      final snapshot = await recipientsRef.get();
+      final recipientQuery =
+          await deliveryRef
+              .collection('recipients')
+              .where('studentId', isEqualTo: studentId)
+              .where('status', isEqualTo: 'Received')
+              .get();
 
-      int receivedCount = 0;
-      for (var doc in snapshot.docs) {
-        if (doc.data()['status'] == 'Received') {
-          receivedCount++;
-        }
-      }
-
-      // Update dokumen pengiriman utama dengan data statistik
-      await FirebaseFirestore.instance
-          .collection('deliveries')
-          .doc(widget.deliveryId)
-          .update({
-            'receivedCount': receivedCount,
-            'absentCount': snapshot.docs.length - receivedCount,
-            'totalRecipients': snapshot.docs.length,
-            'isFinalized': true, // Tandai bahwa ceklis sudah selesai
-          });
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Laporan kehadiran berhasil disubmit!")),
-        );
-        Navigator.pop(context); // Kembali ke halaman sebelumnya
-      }
+      return recipientQuery.docs.isNotEmpty;
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Gagal submit: ${e.toString()}")),
-        );
+      print('Error checking if already received: $e');
+      return false;
+    }
+  }
+
+  /// Menandai siswa telah menerima makanan
+  Future<void> _markAsReceived(String studentId, String studentName) async {
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception("Anda harus login sebagai admin.");
       }
-    } finally {
-      if (mounted) setState(() => _isSubmitting = false);
+
+      // Cek apakah sudah menerima
+      final alreadyReceived = await _checkIfAlreadyReceived(studentId);
+      if (alreadyReceived) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$studentName sudah menerima makanan')),
+        );
+        return;
+      }
+
+      // Gunakan deliveryId yang sudah ada atau buat berdasarkan tanggal
+      final deliveryId =
+          _currentDeliveryId ??
+          '${user.uid}_${DateFormat('yyyy-MM-dd').format(DateTime.parse('$_selectedDate 00:00:00'))}';
+
+      final deliveryRef = FirebaseFirestore.instance
+          .collection('deliveries')
+          .doc(deliveryId);
+
+      final deliveryDoc = await deliveryRef.get();
+      if (!deliveryDoc.exists) {
+        // Buat dokumen delivery baru jika belum ada
+        await deliveryRef.set({
+          'userId': user.uid,
+          'deliveryDate': Timestamp.fromDate(
+            DateTime.parse('$_selectedDate 00:00:00'),
+          ),
+          'totalMeals': 0,
+          'receivedCount': 0,
+          'surplusMeals': 0,
+          'createdAt': Timestamp.now(),
+        });
+      }
+
+      // Tambahkan siswa ke subcollection recipients
+      await deliveryRef.collection('recipients').add({
+        'studentId': studentId,
+        'studentName': studentName,
+        'status': 'Received',
+        'timestamp': Timestamp.now(),
+        'receivedAt': Timestamp.now(),
+      });
+
+      // Update receivedCount di dokumen delivery
+      await deliveryRef.update({'receivedCount': FieldValue.increment(1)});
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '$studentName berhasil ditandai telah menerima makanan',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+
+      setState(() {}); // Refresh UI
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
+    }
+  }
+
+  /// Pilih tanggal untuk ceklis
+  Future<void> _selectDate() async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.parse('$_selectedDate 00:00:00'),
+      firstDate: DateTime.now().subtract(const Duration(days: 7)),
+      lastDate: DateTime.now().add(const Duration(days: 7)),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedDate = DateFormat('yyyy-MM-dd').format(picked);
+        // Reset currentDeliveryId karena tanggal berubah
+        _currentDeliveryId = null;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final recipientsRef = FirebaseFirestore.instance
-        .collection('deliveries')
-        .doc(widget.deliveryId)
-        .collection('recipients');
-
     return Scaffold(
-      backgroundColor: const Color(0xFFFFF6ED),
+      backgroundColor: const Color(0xFFFFF6EC),
       appBar: AppBar(
-        title: Column(
-          children: [
-            Text(_schoolName ?? 'Daftar Kehadiran'),
-            if (_deliveryDate != null)
-              Text(
-                _deliveryDate!,
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.normal,
-                ),
-              ),
-          ],
-        ),
         backgroundColor: Colors.orange,
-        actions: [
-          Tooltip(
-            message: 'Kelola Daftar Siswa',
-            child: IconButton(
-              icon: const Icon(Icons.people_alt_outlined),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DaftarSiswaScreen(),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        centerTitle: true,
+        title: const Text(
+          'Ceklis Penerima Makanan',
+          style: TextStyle(color: Colors.black),
+        ),
+        elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: recipientsRef.orderBy('studentName').snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+      body: Column(
+        children: [
+          // Header dengan tanggal
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              border: Border(
+                bottom: BorderSide(color: Colors.orange, width: 1),
+              ),
+            ),
+            child: Column(
+              children: [
+                Row(
                   children: [
-                    const Icon(
-                      Icons.playlist_add_check,
-                      size: 80,
-                      color: Colors.grey,
+                    const Icon(Icons.calendar_today, color: Colors.orange),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Tanggal: ${DateFormat('dd MMMM yyyy').format(DateTime.parse('$_selectedDate 00:00:00'))}',
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    const Text(
-                      'Daftar kehadiran untuk hari ini kosong.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.playlist_add),
-                      label: const Text('Isi Daftar Siswa Hari Ini'),
-                      onPressed: _isAdding ? null : _populateStudentList,
+                    const Spacer(),
+                    ElevatedButton(
+                      onPressed: _selectDate,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.orange,
                         foregroundColor: Colors.black,
-                        minimumSize: const Size(double.infinity, 50),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
+                      child: const Text('Ubah Tanggal'),
                     ),
                   ],
                 ),
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(8.0),
-            itemCount: snapshot.data!.docs.length,
-            itemBuilder: (context, index) {
-              final doc = snapshot.data!.docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final bool hasReceived = data['status'] == 'Received';
-
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                child: ListTile(
-                  title: Text(data['studentName'] ?? 'No Name'),
-                  subtitle: Text("Kelas ${data['class'] ?? ''}"),
-                  trailing: Checkbox(
-                    value: hasReceived,
-                    onChanged: (value) {
-                      recipientsRef.doc(doc.id).update({
-                        'status': value! ? 'Received' : 'Absent',
-                      });
-                    },
+                const SizedBox(height: 16),
+                // Search bar
+                TextField(
+                  controller: _searchController,
+                  onChanged: _filterRecipients,
+                  decoration: InputDecoration(
+                    hintText: 'Cari berdasarkan NIS atau nama siswa...',
+                    prefixIcon: const Icon(Icons.search, color: Colors.orange),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.orange),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                        color: Colors.orange,
+                        width: 2,
+                      ),
+                    ),
                   ),
                 ),
-              );
-            },
-          );
-        },
-      ),
-      // **UI BARU:** Menambahkan tombol Submit di bagian bawah
-      bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
-          onPressed: _isSubmitting ? null : _submitChecklist,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.orange,
-            foregroundColor: Colors.white,
-            minimumSize: const Size(double.infinity, 50),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              ],
             ),
           ),
-          child:
-              _isSubmitting
-                  ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text(
-                    'Submit Kehadiran',
-                    style: TextStyle(fontSize: 16),
+
+          // Daftar siswa
+          Expanded(
+            child:
+                _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : _filteredRecipients.isEmpty
+                    ? const Center(
+                      child: Text(
+                        'Tidak ada siswa yang ditemukan',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    )
+                    : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _filteredRecipients.length,
+                      itemBuilder: (context, index) {
+                        final recipient = _filteredRecipients[index];
+                        return StudentCard(
+                          studentId: recipient['studentId'],
+                          name: recipient['name'],
+                          className: recipient['class'],
+                          phone: recipient['phone'],
+                          onMarkReceived:
+                              () => _markAsReceived(
+                                recipient['studentId'],
+                                recipient['name'],
+                              ),
+                          checkIfAlreadyReceived:
+                              () => _checkIfAlreadyReceived(
+                                recipient['studentId'],
+                              ),
+                        );
+                      },
+                    ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class StudentCard extends StatefulWidget {
+  final String studentId;
+  final String name;
+  final String className;
+  final String phone;
+  final VoidCallback onMarkReceived;
+  final Future<bool> Function() checkIfAlreadyReceived;
+
+  const StudentCard({
+    super.key,
+    required this.studentId,
+    required this.name,
+    required this.className,
+    required this.phone,
+    required this.onMarkReceived,
+    required this.checkIfAlreadyReceived,
+  });
+
+  @override
+  State<StudentCard> createState() => _StudentCardState();
+}
+
+class _StudentCardState extends State<StudentCard> {
+  bool _isChecking = false;
+  bool _alreadyReceived = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkStatus();
+  }
+
+  Future<void> _checkStatus() async {
+    setState(() {
+      _isChecking = true;
+    });
+
+    final received = await widget.checkIfAlreadyReceived();
+
+    setState(() {
+      _alreadyReceived = received;
+      _isChecking = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: _alreadyReceived ? Colors.green : Colors.orange,
+          width: 1,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            // Info siswa
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.name,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'NIS: ${widget.studentId}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  Text(
+                    'Kelas: ${widget.className}',
+                    style: const TextStyle(color: Colors.grey),
+                  ),
+                  if (widget.phone.isNotEmpty)
+                    Text(
+                      'HP: ${widget.phone}',
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                ],
+              ),
+            ),
+
+            // Status dan tombol
+            Column(
+              children: [
+                if (_isChecking)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else if (_alreadyReceived)
+                  const Column(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.green, size: 32),
+                      SizedBox(height: 4),
+                      Text(
+                        'Sudah Terima',
+                        style: TextStyle(
+                          color: Colors.green,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      widget.onMarkReceived();
+                      await Future.delayed(const Duration(seconds: 1));
+                      _checkStatus(); // Refresh status
+                    },
+                    icon: const Icon(Icons.check, size: 16),
+                    label: const Text('Ceklis'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

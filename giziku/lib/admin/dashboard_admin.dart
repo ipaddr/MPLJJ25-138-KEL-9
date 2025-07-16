@@ -21,37 +21,31 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   String _schoolName = '';
   bool _isLoading = true;
 
-  Stream<QuerySnapshot>?
-  _allRecipientsStream; // Stream untuk total penerima (SEMUA)
-  Stream<QuerySnapshot>?
-  _distributedRecipientsStream; // Stream untuk penerima yang sudah TERDISTRIBUSI
+  Stream<QuerySnapshot>? _allRecipientsStream;
+  Stream<QuerySnapshot>? _deliveriesStream;
 
   @override
   void initState() {
     super.initState();
     _fetchSchoolData();
-    _setupRecipientStreams();
+    _setupStreams();
   }
 
-  void _setupRecipientStreams() {
+  void _setupStreams() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // Stream untuk MENGHITUNG SEMUA PENERIMA
+      // Stream untuk total penerima dari koleksi recipients
       _allRecipientsStream =
           FirebaseFirestore.instance
               .collection('recipients')
               .where('userId', isEqualTo: user.uid)
               .snapshots();
 
-      // Stream untuk MENGHITUNG PENERIMA YANG SUDAH TERDISTRIBUSI (dicentang)
-      _distributedRecipientsStream =
+      // Stream untuk delivery reports
+      _deliveriesStream =
           FirebaseFirestore.instance
-              .collection('recipients')
+              .collection('deliveries')
               .where('userId', isEqualTo: user.uid)
-              .where(
-                'statusDistribusi',
-                isEqualTo: 'terdistribusi',
-              ) // Filter penting
               .snapshots();
     }
   }
@@ -163,7 +157,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
 
             const SizedBox(height: 24),
 
-            // Statistik box (Disimplifikasi menjadi 3 statistik: Total Penerima, Total Distribusi, Sisa)
+            // Statistik box
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Column(
@@ -171,7 +165,7 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                   // Baris 1: Total Penerima dan Total Distribusi
                   Row(
                     children: [
-                      // Stat: Total Penerima (Semua yang diinput)
+                      // Stat: Total Penerima
                       user == null
                           ? const StatBox(label: "Total Penerima", value: "0")
                           : StreamBuilder<QuerySnapshot>(
@@ -198,11 +192,11 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                             },
                           ),
                       const SizedBox(width: 12),
-                      // Stat: Total Distribusi (yang sudah dicentang)
+                      // Stat: Total Distribusi (dari deliveries)
                       user == null
                           ? const StatBox(label: "Total Distribusi", value: "0")
                           : StreamBuilder<QuerySnapshot>(
-                            stream: _distributedRecipientsStream,
+                            stream: _deliveriesStream,
                             builder: (context, snapshot) {
                               if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
@@ -217,67 +211,87 @@ class _DashboardAdminState extends State<DashboardAdmin> {
                                   value: "Error",
                                 );
                               }
-                              final distributedTotal =
-                                  snapshot.data?.docs.length ?? 0;
+
+                              int totalDistributed = 0;
+                              final docs = snapshot.data?.docs ?? [];
+
+                              for (var doc in docs) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                totalDistributed +=
+                                    (data['receivedCount'] as int? ?? 0);
+                              }
+
                               return StatBox(
                                 label: "Total Distribusi",
-                                value: distributedTotal.toString(),
+                                value: totalDistributed.toString(),
                               );
                             },
                           ),
                     ],
                   ),
-                  const SizedBox(height: 12), // Spasi antar baris statistik
-                  // Baris 2: Sisa (hitung dari kedua stream)
+                  const SizedBox(height: 12),
                   Row(
                     children: [
+                      // Stat: Total Laporan
                       user == null
-                          ? const StatBox(label: "Sisa", value: "0")
+                          ? const StatBox(label: "Total Laporan", value: "0")
                           : StreamBuilder<QuerySnapshot>(
-                            stream: _allRecipientsStream, // Ambil total semua
-                            builder: (context, allSnapshot) {
-                              if (allSnapshot.connectionState ==
+                            stream: _deliveriesStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
                                   ConnectionState.waiting) {
                                 return const StatBox(
-                                  label: "Sisa",
+                                  label: "Total Laporan",
                                   value: "...",
                                 );
                               }
-                              if (allSnapshot.hasError) {
+                              if (snapshot.hasError) {
                                 return const StatBox(
-                                  label: "Sisa",
+                                  label: "Total Laporan",
                                   value: "Error",
                                 );
                               }
-                              final totalAll =
-                                  allSnapshot.data?.docs.length ?? 0;
+                              final totalReports =
+                                  snapshot.data?.docs.length ?? 0;
+                              return StatBox(
+                                label: "Total Laporan",
+                                value: totalReports.toString(),
+                              );
+                            },
+                          ),
+                      const SizedBox(width: 12),
+                      // Stat: Sisa Makanan
+                      user == null
+                          ? const StatBox(label: "Sisa Makanan", value: "0")
+                          : StreamBuilder<QuerySnapshot>(
+                            stream: _deliveriesStream,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const StatBox(
+                                  label: "Sisa Makanan",
+                                  value: "...",
+                                );
+                              }
+                              if (snapshot.hasError) {
+                                return const StatBox(
+                                  label: "Sisa Makanan",
+                                  value: "Error",
+                                );
+                              }
 
-                              return StreamBuilder<QuerySnapshot>(
-                                stream:
-                                    _distributedRecipientsStream, // Ambil total terdistribusi
-                                builder: (context, distributedSnapshot) {
-                                  if (distributedSnapshot.connectionState ==
-                                      ConnectionState.waiting) {
-                                    return const StatBox(
-                                      label: "Sisa",
-                                      value: "...",
-                                    );
-                                  }
-                                  if (distributedSnapshot.hasError) {
-                                    return const StatBox(
-                                      label: "Sisa",
-                                      value: "Error",
-                                    );
-                                  }
-                                  final totalDistributed =
-                                      distributedSnapshot.data?.docs.length ??
-                                      0;
-                                  final remaining = totalAll - totalDistributed;
-                                  return StatBox(
-                                    label: "Sisa",
-                                    value: remaining.toString(),
-                                  );
-                                },
+                              int totalSurplus = 0;
+                              final docs = snapshot.data?.docs ?? [];
+
+                              for (var doc in docs) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                totalSurplus +=
+                                    (data['surplusMeals'] as int? ?? 0);
+                              }
+
+                              return StatBox(
+                                label: "Sisa Makanan",
+                                value: totalSurplus.toString(),
                               );
                             },
                           ),
@@ -289,7 +303,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
 
             const SizedBox(height: 32),
 
-            // Tombol aksi (tetap sama)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -358,7 +371,6 @@ class _DashboardAdminState extends State<DashboardAdmin> {
   }
 }
 
-// StatBox dan ActionButton tetap sama
 class StatBox extends StatelessWidget {
   final String label;
   final String value;
