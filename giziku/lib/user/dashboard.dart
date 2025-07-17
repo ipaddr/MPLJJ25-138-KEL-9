@@ -73,12 +73,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (menuQuery.docs.isNotEmpty) {
         _todaysMenu = menuQuery.docs.first.data();
       } else {
-        _todaysMenu = {
-          'calories': 0,
-          'protein': 0,
-          'carbs': 0,
-          'deliveryTime': 'No schedule',
-        };
+        _todaysMenu = {'calories': 0, 'protein': 0, 'carbs': 0};
       }
     } catch (e) {
       _errorMessage = e.toString();
@@ -137,7 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  _buildReminderCard(),
+                  const SizedBox(height: 16),
                   _buildNutritionStatusCard(),
                   const SizedBox(height: 24),
                   _buildQuickActions(),
@@ -190,42 +185,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildReminderCard() {
-    final nextMealTime = _todaysMenu?['deliveryTime'] ?? 'No schedule';
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.9),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        padding: const EdgeInsets.all(16),
-        child: Row(
-          children: [
-            const Icon(Icons.access_time, color: Colors.black54),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Pengingat Makan Harian',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Makan selanjutnya: Siang jam $nextMealTime',
-                    style: const TextStyle(color: Colors.black54),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

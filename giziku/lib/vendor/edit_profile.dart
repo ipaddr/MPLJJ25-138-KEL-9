@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -9,41 +10,62 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final TextEditingController vendorNameController = TextEditingController();
+  final TextEditingController businessNameController = TextEditingController();
   final TextEditingController openHoursController = TextEditingController();
   final TextEditingController locationController = TextEditingController();
-  final TextEditingController contactNumberController = TextEditingController();
-  final TextEditingController descriptionController = TextEditingController();
-
-  // Referensi ke dokumen profil di Firestore
-  final DocumentReference _profileRef = FirebaseFirestore.instance
-      .collection('vendors')
-      .doc('main_profile');
+  final TextEditingController phoneNumberController = TextEditingController();
+  final TextEditingController businessDescriptionController =
+      TextEditingController();
 
   bool _isLoading = true;
+  DocumentReference? _profileRef;
 
   @override
   void initState() {
     super.initState();
-    _loadProfileData();
+    _initializeProfileRef();
+  }
+
+  /// Inisialisasi referensi profil berdasarkan user yang sedang login
+  void _initializeProfileRef() {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      _profileRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid);
+      _loadProfileData();
+    } else {
+      // Jika tidak ada user yang login, redirect ke login
+      Navigator.pushReplacementNamed(context, '/login');
+    }
   }
 
   /// Mengambil data profil dari Firestore untuk diisi ke dalam form.
   Future<void> _loadProfileData() async {
+    if (_profileRef == null) return;
+
     try {
-      final snapshot = await _profileRef.get();
+      final snapshot = await _profileRef!.get();
       if (snapshot.exists) {
         final data = snapshot.data() as Map<String, dynamic>;
-        vendorNameController.text = data['vendorName'] ?? '';
-        openHoursController.text = data['openHours'] ?? '';
-        locationController.text = data['location'] ?? '';
-        contactNumberController.text = data['contactNumber'] ?? '';
-        descriptionController.text = data['description'] ?? '';
+
+        // Menggunakan field names yang konsisten dengan ProfileScreen
+        businessNameController.text =
+            data['businessName'] ?? data['username'] ?? data['name'] ?? '';
+        openHoursController.text =
+            data['openHours'] ?? data['operatingHours'] ?? '';
+        locationController.text = data['location'] ?? data['address'] ?? '';
+        phoneNumberController.text =
+            data['phoneNumber'] ?? data['phone'] ?? data['contactNumber'] ?? '';
+        businessDescriptionController.text =
+            data['businessDescription'] ?? data['description'] ?? '';
       }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal memuat profil: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Gagal memuat profil: $e")));
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -55,9 +77,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   /// Menyimpan perubahan ke Firestore.
   Future<void> _saveChanges() async {
-    if (vendorNameController.text.isEmpty) {
+    if (_profileRef == null) return;
+
+    if (businessNameController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Nama Vendor tidak boleh kosong')),
+        const SnackBar(content: Text('Nama Bisnis tidak boleh kosong')),
       );
       return;
     }
@@ -67,22 +91,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     });
 
     try {
-      await _profileRef.set({
-        'vendorName': vendorNameController.text,
+      // Menggunakan field names yang konsisten
+      await _profileRef!.set({
+        'businessName': businessNameController.text,
         'openHours': openHoursController.text,
         'location': locationController.text,
-        'contactNumber': contactNumberController.text,
-        'description': descriptionController.text,
-      }, SetOptions(merge: true)); // merge:true agar aman untuk update/create
+        'phoneNumber': phoneNumberController.text,
+        'businessDescription': businessDescriptionController.text,
+        'updatedAt': FieldValue.serverTimestamp(), // Tambahkan timestamp
+      }, SetOptions(merge: true));
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Perubahan berhasil disimpan!')),
-      );
-      Navigator.pop(context); // Kembali ke halaman profil
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Perubahan berhasil disimpan!')),
+        );
+        Navigator.pop(context); // Kembali ke halaman profil
+      }
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Gagal menyimpan perubahan: $e")));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Gagal menyimpan perubahan: $e")),
+        );
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -94,11 +124,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   void dispose() {
-    vendorNameController.dispose();
+    businessNameController.dispose();
     openHoursController.dispose();
     locationController.dispose();
-    contactNumberController.dispose();
-    descriptionController.dispose();
+    phoneNumberController.dispose();
+    businessDescriptionController.dispose();
     super.dispose();
   }
 
@@ -109,6 +139,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF9800),
         title: const Text('Edit Profile'),
+        foregroundColor: Colors.black,
+        elevation: 0,
       ),
       body:
           _isLoading
@@ -118,9 +150,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 child: Column(
                   children: [
                     _buildTextField(
-                      label: 'Vendor Name',
+                      label: 'Business Name',
                       hintText: 'Example: Healthy Kitchen',
-                      controller: vendorNameController,
+                      controller: businessNameController,
                     ),
                     _buildTextField(
                       label: 'Open Hours',
@@ -129,40 +161,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     ),
                     _buildTextField(
                       label: 'Location',
-                      hintText: 'Example: Jakarta, Indonesia',
+                      hintText: 'Example: Padang, Indonesia',
                       controller: locationController,
                     ),
                     _buildTextField(
-                      label: 'Contact Number',
-                      hintText: 'Example: +62 812 3456 7890',
-                      controller: contactNumberController,
+                      label: 'Phone Number',
+                      hintText: 'Example: +62 8123-124-2346',
+                      controller: phoneNumberController,
                       keyboardType: TextInputType.phone,
                     ),
                     _buildTextField(
-                      label: 'Description',
+                      label: 'Business Description',
                       hintText: 'Example: Trusted Healthy Food Supplier',
-                      controller: descriptionController,
-                      maxLines: 2,
+                      controller: businessDescriptionController,
+                      maxLines: 3,
                     ),
                     const SizedBox(height: 24),
                     SizedBox(
                       width: double.infinity,
                       height: 48,
                       child: ElevatedButton(
-                        onPressed: _saveChanges,
+                        onPressed: _isLoading ? null : _saveChanges,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF9800),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
-                        child: const Text(
-                          'Save Change',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black,
-                          ),
-                        ),
+                        child:
+                            _isLoading
+                                ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      Colors.black,
+                                    ),
+                                  ),
+                                )
+                                : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
                       ),
                     ),
                   ],
@@ -183,7 +227,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: controller,
@@ -199,6 +246,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.grey),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: Colors.grey),
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),

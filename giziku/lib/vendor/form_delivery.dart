@@ -1,85 +1,173 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class AddDeliveryScreen extends StatefulWidget {
   const AddDeliveryScreen({super.key});
 
   @override
-  State<AddDeliveryScreen> createState() => _AddDeliveryScreenState();
+  _AddDeliveryScreenState createState() => _AddDeliveryScreenState();
 }
 
 class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
-  final TextEditingController _schoolController = TextEditingController();
-  final TextEditingController _mealsController = TextEditingController();
-  final TextEditingController _timeController = TextEditingController();
-
-  Future<void> _pickTime() async {
-    final TimeOfDay? picked = await showTimePicker(
-      context: context,
-      initialTime: TimeOfDay.now(),
-    );
-
-    if (picked != null) {
-      setState(() {
-        // Mengisi controller dengan waktu yang sudah diformat
-        _timeController.text = picked.format(context);
-      });
-    }
-  }
-
-  /// Fungsi untuk mengirim data ke Firebase Firestore.
-  Future<void> _submitForm() async {
-    final schoolName = _schoolController.text.trim();
-    final meals = int.tryParse(_mealsController.text.trim()) ?? 0;
-    final deliveryTime = _timeController.text.trim();
-
-    // Validasi input
-    if (schoolName.isEmpty || deliveryTime.isEmpty || meals <= 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Harap lengkapi semua field dengan benar'),
-        ),
-      );
-      return;
-    }
-
-    // Tampilkan loading indicator
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      // Mengirim data ke koleksi 'deliveries' di Firestore
-      await FirebaseFirestore.instance.collection('deliveries').add({
-        'schoolName': schoolName,
-        'numberOfMeals': meals,
-        'deliveryTime': deliveryTime,
-        'status': 'Pending', // Status default untuk setiap pengiriman baru
-        'createdAt': FieldValue.serverTimestamp(), // Timestamp dari server
-      });
-
-      // Tutup loading indicator
-      Navigator.of(context).pop();
-      // Tutup halaman form setelah berhasil
-      Navigator.of(context).pop();
-    } catch (e) {
-      // Tutup loading indicator
-      Navigator.of(context).pop();
-      // Tampilkan pesan error jika gagal
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal menambahkan data: $e')));
-    }
-  }
+  final _formKey = GlobalKey<FormState>();
+  final _schoolNameController = TextEditingController();
+  final _mealsNumberController = TextEditingController();
+  final _deliveryTimeController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    _schoolController.dispose();
-    _mealsController.dispose();
-    _timeController.dispose();
+    _schoolNameController.dispose();
+    _mealsNumberController.dispose();
+    _deliveryTimeController.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectTime(BuildContext context) async {
+    final TimeOfDay? pickedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFFF9800),
+              onPrimary: Colors.black,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedTime != null) {
+      setState(() {
+        _deliveryTimeController.text = pickedTime.format(context);
+      });
+    }
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFFFF9800),
+              onPrimary: Colors.black,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (pickedDate != null) {
+      final TimeOfDay? pickedTime = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.now(),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.light(
+                primary: Color(0xFFFF9800),
+                onPrimary: Colors.black,
+                onSurface: Colors.black,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+
+      if (pickedTime != null) {
+        final DateTime fullDateTime = DateTime(
+          pickedDate.year,
+          pickedDate.month,
+          pickedDate.day,
+          pickedTime.hour,
+          pickedTime.minute,
+        );
+
+        setState(() {
+          _deliveryTimeController.text =
+              "${pickedDate.day}/${pickedDate.month}/${pickedDate.year} ${pickedTime.format(context)}";
+        });
+      }
+    }
+  }
+
+  Future<void> _addDelivery() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Anda harus login untuk menambah pengiriman'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Validasi input
+      final mealsCount = int.tryParse(_mealsNumberController.text);
+      if (mealsCount == null || mealsCount <= 0) {
+        throw Exception('Jumlah makanan harus berupa angka yang valid');
+      }
+
+      // PERBAIKAN: Sesuaikan dengan collection dan field names di DeliveryScreen
+      await FirebaseFirestore.instance.collection('recipients').add({
+        'userId': user.uid,
+        'nama':
+            _schoolNameController.text
+                .trim(), // Sesuai dengan yang dibaca DeliveryScreen
+        'numberOfMeals': mealsCount,
+        'deliveryTime': _deliveryTimeController.text.trim(),
+        'statusDistribusi':
+            'Pending', // Sesuai dengan yang dibaca DeliveryScreen
+        'timestamp':
+            FieldValue.serverTimestamp(), // Sesuai dengan yang dibaca DeliveryScreen
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Pengiriman berhasil ditambahkan!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context, true); // Return true to indicate success
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menambahkan pengiriman: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override
@@ -87,120 +175,258 @@ class _AddDeliveryScreenState extends State<AddDeliveryScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFFFF6ED),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFF9800),
         title: const Text('Add Delivery'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context),
-        ),
+        backgroundColor: const Color(0xFFFF9800),
+        foregroundColor: Colors.black,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildTextField(
-              controller: _schoolController,
-              label: 'Name of school',
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              controller: _mealsController,
-              label: 'Number of Meals',
-              keyboardType: TextInputType.number,
-            ),
-            const SizedBox(height: 16),
-            _buildTimeField(
-              controller: _timeController,
-              label: 'Delivery Time',
-              onTap: _pickTime,
-            ),
-            const SizedBox(height: 40),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF9800),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+        padding: const EdgeInsets.all(16),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 16),
+
+              // School Name Field
+              _buildTextFormField(
+                label: 'School Name',
+                controller: _schoolNameController,
+                hint: 'Enter school name',
+                icon: Icons.school,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'School name is required';
+                  }
+                  if (value.trim().length < 3) {
+                    return 'School name must be at least 3 characters';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Number of Meals Field
+              _buildTextFormField(
+                label: 'Number of Meals',
+                controller: _mealsNumberController,
+                hint: 'Enter number of meals',
+                icon: Icons.restaurant,
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Number of meals is required';
+                  }
+                  final meals = int.tryParse(value.trim());
+                  if (meals == null || meals <= 0) {
+                    return 'Please enter a valid number of meals';
+                  }
+                  if (meals > 1000) {
+                    return 'Number of meals cannot exceed 1000';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 20),
+
+              // Delivery Time Field
+              _buildDateTimeField(
+                label: 'Delivery Date & Time',
+                controller: _deliveryTimeController,
+                hint: 'Select delivery date and time',
+                icon: Icons.access_time,
+                onTap: () => _selectDate(context),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Delivery time is required';
+                  }
+                  return null;
+                },
+              ),
+
+              const SizedBox(height: 32),
+
+              // Submit Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _addDelivery,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF9800),
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 2,
                   ),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black,
+                              ),
+                            ),
+                          )
+                          : const Text(
+                            'Add Delivery',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
                 ),
-                onPressed: _submitForm,
-                child: const Text(
-                  'Add',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Cancel Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: TextButton(
+                  onPressed: _isLoading ? null : () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: Colors.grey[600],
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      side: BorderSide(color: Colors.grey[300]!),
+                    ),
+                  ),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Helper widget untuk membuat text field
-  Widget _buildTextField({
-    required TextEditingController controller,
+  Widget _buildTextFormField({
     required String label,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
     TextInputType keyboardType = TextInputType.text,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          validator: validator,
           decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white,
+            hintText: hint,
+            prefixIcon: Icon(icon, color: Colors.grey[600]),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFFF9800), width: 2),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
           ),
         ),
       ],
     );
   }
 
-  // Helper widget untuk membuat field waktu
-  Widget _buildTimeField({
-    required TextEditingController controller,
+  Widget _buildDateTimeField({
     required String label,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
     required VoidCallback onTap,
+    String? Function(String?)? validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+        Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+            fontSize: 16,
+            color: Colors.black87,
+          ),
+        ),
         const SizedBox(height: 8),
-        TextField(
+        TextFormField(
           controller: controller,
           readOnly: true,
           onTap: onTap,
+          validator: validator,
           decoration: InputDecoration(
-            filled: true,
-            fillColor: Colors.white,
-            suffixIcon: const Icon(Icons.access_time),
+            hintText: hint,
+            prefixIcon: Icon(icon, color: Colors.grey[600]),
+            suffixIcon: const Icon(Icons.calendar_today, color: Colors.grey),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: Colors.grey),
+              borderSide: BorderSide(color: Colors.grey[300]!),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide(color: Colors.grey[300]!),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: const BorderSide(color: Color(0xFFFF9800), width: 2),
             ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: Colors.red, width: 2),
+            ),
+            filled: true,
+            fillColor: Colors.white,
           ),
         ),
       ],
